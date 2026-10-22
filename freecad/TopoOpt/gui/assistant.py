@@ -1003,8 +1003,9 @@ class AssistantPanel:
         try:
             if os.name == "nt":
                 os.startfile(pfad)
-            else:
-                subprocess.Popen(["xdg-open", pfad])
+            # xdg-open only exists on Linux; Qt opens the file on macOS and Linux alike
+            elif not QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(pfad)):
+                raise RuntimeError(pfad)
         except Exception as exc:
             self.ergebnis_info.setText(uebersetze("The log file could not be opened: %s") % exc)
 
