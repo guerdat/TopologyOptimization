@@ -367,6 +367,12 @@ pruefe("path = " in text and "tmp" in text, "der Arbeitsordner steht in der Konf
 pruefe("file_name = 'Mesh.inp'" in text, "die Eingabedatei steht in der Konfiguration")
 pruefe("mass_goal_ratio = 0.6" in text, "die Zielmasse steht in der Konfiguration")
 pruefe("FI_violated_tolerance = 1" in text, "die FI-Toleranz steht in der Konfiguration")
+obj5.FIViolatedTolerance = 5
+text_fi = conf_modul.conf_text(obj5, os.path.join("C:", os.sep, "tmp", "Mesh.inp"), domains4,
+                               os.path.join("C:", os.sep, "tmp"))
+obj5.FIViolatedTolerance = 1
+pruefe("FI_violated_tolerance = 5" in text_fi and "FI_violated_tolerance = 1" not in text_fi,
+       "ein geaenderter Wert der FI-Toleranz wird geschrieben (5)")
 pruefe("{'SetA': True, 'SetB': False}" in text,
        "Design- und Nicht-Design-Raum stehen in der Konfiguration")
 pruefe("['simple', 4.85]" in text,
