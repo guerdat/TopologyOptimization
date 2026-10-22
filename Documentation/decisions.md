@@ -555,6 +555,27 @@ unnoticed.  `.github/workflows/tests.yml` now runs on every push and every pull 
 The scenario matrix remains manual work: it computes with the unchanged beso from GitHub and
 should not turn red on every change from upstream.
 
+## D42 - FI_violated_tolerance is a property (default 1, as in beso)
+
+With an allowable stress, by default beso freezes the mass **permanently** as soon as the number of
+elements with FI >= 1 exceeds the count of iteration 0 by `FI_violated_tolerance`.  
+
+*Measured* on a real bracket (FreeCAD 1.1.4, macOS, about 60 700 tetrahedra, 184 MPa in the
+design space, mass goal 0.15):
+
+* run 1 (normal, filter 12 mm): at i = 53, 2 elements reached FI 2.95 for one iteration.
+  From i = 54 on no element exceeded the limit again (FI_max about 0.70), but the mass stayed
+  frozen and decayed only to 41 % of the design mass.
+* run 2 (gentle, filter 16 mm): at i = 71, 3 elements reached FI 1.94.  The snapshots of every
+  iteration show the cause: beso removed 66 of 185 elements of a thin, low-stress web in one
+  step, cut a load path, and added 44 of them back at i = 72 - FI back to 0.19.  The mass stayed
+  frozen and the run ended at 46.5 %.
+
+The new property `FIViolatedTolerance` (integer, property editor only) is written as
+`FI_violated_tolerance` into `beso_conf.py`.  The default stays 1, so existing documents compute
+exactly as before. The beso copy is unchanged.
+
+
 ## D37 - "Show iterations" already shows the intermediate state during the run
 
 The button was greyed out until the end of the run, because it waited for `resulting_states.vtk` - which
