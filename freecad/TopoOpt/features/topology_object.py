@@ -64,6 +64,14 @@ def ensure_properties(obj):
                         uebersetze("Stop when the mean stress changes less than this "
                                    "value in the last 5 iterations"))
         obj.Tolerance = 1e-3
+    if not hasattr(obj, "FIViolatedTolerance"):
+        # beso's FI_violated_tolerance: with a stress limit, beso freezes the mass for good
+        # as soon as this many more elements than at iteration 0 exceed it - a one-iteration
+        # spike of two elements is enough with the default (see decisions.md, D42)
+        obj.addProperty("App::PropertyInteger", "FIViolatedTolerance", GROUP,
+                        uebersetze("Freeze the mass when this many more elements than at the "
+                                   "start exceed the stress limit (beso: 1)"))
+        obj.FIViolatedTolerance = 1
     if not hasattr(obj, "CpuCores"):
         obj.addProperty("App::PropertyInteger", "CpuCores", GROUP,
                         uebersetze("Processor cores for the solver (0 = all)"))

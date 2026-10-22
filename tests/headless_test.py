@@ -236,6 +236,7 @@ pruefe(abs(obj4.MassGoalRatio - 0.6) < 1e-9, "Zielmasse startet bei 0,6 (60 %)")
 pruefe(obj4.OptimizationBase == "stiffness", "Optimierungsziel startet mit 'stiffness'")
 pruefe(obj4.IterationsLimit == "auto", "Iterationen starten mit 'auto'")
 pruefe(abs(obj4.Tolerance - 1e-3) < 1e-12, "Toleranz startet mit 1e-3 (beso-Standard)")
+pruefe(obj4.FIViolatedTolerance == 1, "FI-Toleranz startet bei 1 (beso-Standard)")
 pruefe(obj4.CpuCores == 0, "Kerne starten bei 0 (alle)")
 pruefe(obj4.MassChange == "normal", "Massenänderung startet mit 'normal'")
 pruefe(obj4.SaveIterations == 10, "jede 10. Iteration wird gespeichert (spart Platz)")
@@ -245,6 +246,7 @@ obj4.MassGoalRatio = 0.3
 obj4.OptimizationBase = "buckling"
 obj4.IterationsLimit = "25"
 obj4.CpuCores = 4
+obj4.FIViolatedTolerance = 5
 obj4.Filters = prm.format_filters([["simple", 7.5], ["casting", 2.0, "(0, 0, 1)"]])
 pfad4 = os.path.join(tempfile.gettempdir(), "topoopt_params_test.FCStd")
 doc4.saveAs(pfad4)
@@ -256,6 +258,7 @@ pruefe('name="MassGoalRatio"' in _xml and "0.3" in _xml, "Zielmasse ist gespeich
 pruefe("buckling" in _xml, "Optimierungsziel ist gespeichert")
 pruefe("casting" in _xml, "Filter sind gespeichert")
 pruefe('name="CpuCores"' in _xml, "Kerne sind gespeichert")
+pruefe('name="FIViolatedTolerance"' in _xml, "FI-Toleranz ist gespeichert")
 os.remove(pfad4)
 
 # --- mitgeliefertes beso + Filterradius -------------------------------------
@@ -363,6 +366,7 @@ text = conf_modul.conf_text(obj5, os.path.join("C:", os.sep, "tmp", "Mesh.inp"),
 pruefe("path = " in text and "tmp" in text, "der Arbeitsordner steht in der Konfiguration")
 pruefe("file_name = 'Mesh.inp'" in text, "die Eingabedatei steht in der Konfiguration")
 pruefe("mass_goal_ratio = 0.6" in text, "die Zielmasse steht in der Konfiguration")
+pruefe("FI_violated_tolerance = 1" in text, "die FI-Toleranz steht in der Konfiguration")
 pruefe("{'SetA': True, 'SetB': False}" in text,
        "Design- und Nicht-Design-Raum stehen in der Konfiguration")
 pruefe("['simple', 4.85]" in text,
