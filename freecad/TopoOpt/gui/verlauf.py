@@ -65,7 +65,20 @@ class Verlauf(object):
         self.geschlossen = False
         fenster = self._sorge_fuer_fenster()
         self.zeichne(erzwingen=True)
+        self._nach_vorn(fenster)
         return fenster
+
+    def _nach_vorn(self, fenster):
+        """Den Tab des Fensters aktivieren - existiert es schon, passierte sonst nichts Sichtbares."""
+        if fenster is None:
+            return
+        try:
+            tab = fenster.parentWidget()          # Plot.figure legt das Fenster in ein QMdiSubWindow
+            mdi = tab.mdiArea()
+            if mdi is not None:
+                mdi.setActiveSubWindow(tab)
+        except Exception:
+            pass
 
     def schliessen(self):
         """Nach einem Lauf: den Timer anhalten (das Fenster bleibt offen)."""
