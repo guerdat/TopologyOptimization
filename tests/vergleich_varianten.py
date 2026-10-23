@@ -27,99 +27,99 @@ import sys
 import tempfile
 import time
 
-HIER = os.path.dirname(os.path.abspath(__file__))
-BERICHT = os.path.join(HIER, "vergleich_varianten.md")
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPORT = os.path.join(HERE, "vergleich_varianten.md")
 # original beso: cloned upstream state (see the module docstring)
 ORIGINAL = os.environ.get("BESO_ORIGINAL", os.path.join(tempfile.gettempdir(), "beso-original"))
 # bundled copy of the addon (this repo)
-ADDON = os.path.join(os.path.dirname(HIER), "freecad", "TopoOpt", "beso")
+ADDON = os.path.join(os.path.dirname(HERE), "freecad", "TopoOpt", "beso")
 
-VARIANTEN = (("beso (GitHub, unveraendert)", ORIGINAL), ("beso im Addon", ADDON))
+VARIANTS = (("beso (GitHub, unveraendert)", ORIGINAL), ("beso im Addon", ADDON))
 
 def _python():
     """Interpreter without a FreeCAD start - beso needs only Python and numpy."""
-    neben = os.path.join(os.path.dirname(sys.executable), "python.exe")
-    return neben if os.path.isfile(neben) else sys.executable
+    sibling = os.path.join(os.path.dirname(sys.executable), "python.exe")
+    return sibling if os.path.isfile(sibling) else sys.executable
 
 
 PYTHON = os.environ.get("BESO_PYTHON") or _python()
 
 
-def grosse_inp():
-    kandidaten = glob.glob(os.path.join(tempfile.gettempdir(), "fcfem_*", "*.inp"))
-    return sorted(kandidaten, key=os.path.getsize)[-1] if kandidaten else ""
+def largest_inp():
+    candidates = glob.glob(os.path.join(tempfile.gettempdir(), "fcfem_*", "*.inp"))
+    return sorted(candidates, key=os.path.getsize)[-1] if candidates else ""
 
 
-def elset_aus_inp(pfad):
-    text = open(pfad, encoding="utf8", errors="ignore").read()
-    namen = re.findall(r"^\*ELSET,\s*ELSET=([^\s,]+)", text, re.M)
-    namen += re.findall(r"^\*ELEMENT,\s*TYPE=\w+,\s*ELSET=([^\s,]+)", text, re.M)
-    ohne = [n for n in namen if n.lower() not in ("eall", "efaces", "evolumes")]
-    return sorted(ohne)[0] if ohne else ""
+def elset_from_inp(path):
+    text = open(path, encoding="utf8", errors="ignore").read()
+    names = re.findall(r"^\*ELSET,\s*ELSET=([^\s,]+)", text, re.M)
+    names += re.findall(r"^\*ELEMENT,\s*TYPE=\w+,\s*ELSET=([^\s,]+)", text, re.M)
+    without_collectors = [n for n in names if n.lower() not in ("eall", "efaces", "evolumes")]
+    return sorted(without_collectors)[0] if without_collectors else ""
 
 
-def messung(beso_ordner, inp, elset):
+def measure(beso_folder, inp, elset):
     """Measure one beso copy in its own process (each brings its own modules)."""
-    skript = os.path.join(HIER, "messung_beso.py")
+    script = os.path.join(HERE, "messung_beso.py")
     start = time.time()
-    prozess = subprocess.run([PYTHON, skript, beso_ordner, inp, elset],
+    process = subprocess.run([PYTHON, script, beso_folder, inp, elset],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=3600)
-    text = prozess.stdout.decode("utf8", "replace")
-    zeilen = [z for z in text.splitlines() if z.startswith("MESSUNG|")]
-    if not zeilen:
-        letzte = [z for z in text.splitlines() if z.strip()]
-        return {"fehler": letzte[-1][:120] if letzte else "keine Ausgabe",
-                "gesamt": time.time() - start}
-    w = zeilen[-1].split("|")[1:]
-    return {"import": float(w[0]), "cg": float(w[1]), "size": float(w[2]), "prep": float(w[3]),
-            "elemente": int(w[4]), "paare": int(w[5]), "mittel": float(w[6]),
-            "gesamt": time.time() - start}
+    text = process.stdout.decode("utf8", "replace")
+    lines = [z for z in text.splitlines() if z.startswith("MESSUNG|")]
+    if not lines:
+        last = [z for z in text.splitlines() if z.strip()]
+        return {"error": last[-1][:120] if last else "keine Ausgabe",
+                "total": time.time() - start}
+    values = lines[-1].split("|")[1:]
+    return {"import": float(values[0]), "cg": float(values[1]), "size": float(values[2]),
+            "prep": float(values[3]), "elements": int(values[4]), "pairs": int(values[5]),
+            "mean_size": float(values[6]), "total": time.time() - start}
 
 
 def main():
-    inp = sys.argv[1] if len(sys.argv) > 1 else grosse_inp()
+    inp = sys.argv[1] if len(sys.argv) > 1 else largest_inp()
     if not inp or not os.path.isfile(inp):
         print("kein Modell gefunden - bitte eine .inp angeben")
         return
-    elset = sys.argv[2] if len(sys.argv) > 2 else elset_aus_inp(inp)
+    elset = sys.argv[2] if len(sys.argv) > 2 else elset_from_inp(inp)
     if not elset:
         print("im Modell ist kein Element-Set gefunden worden")
         return
 
-    zeilen = ["# Leistungsvergleich der beso-Kopien", "",
+    lines = ["# Leistungsvergleich der beso-Kopien", "",
               "Modell: `%s` (%.1f MB), Element-Set `%s`"
               % (os.path.basename(inp), os.path.getsize(inp) / 1e6, elset), "",
               "| Variante | Netz lesen | Volumen/CG | Elementgroessen | Nachbarschaftsgitter "
               "| Summe | Elemente | Nachbarpaare |",
               "|---|---|---|---|---|---|---|---|"]
-    ergebnisse = {}
-    for name, ordner in VARIANTEN:
-        if not os.path.isdir(ordner):
-            zeilen.append("| %s | - | - | - | - | - | - | nicht gefunden: `%s` |" % (name, ordner))
-            print("fehlt: %s" % ordner, flush=True)
+    results = {}
+    for name, folder in VARIANTS:
+        if not os.path.isdir(folder):
+            lines.append("| %s | - | - | - | - | - | - | nicht gefunden: `%s` |" % (name, folder))
+            print("fehlt: %s" % folder, flush=True)
             continue
-        e = messung(ordner, inp, elset)
-        ergebnisse[name] = e
-        if "fehler" in e:
-            zeilen.append("| %s | - | - | - | - | - | - | Fehler: %s |" % (name, e["fehler"]))
-            print("%-28s Fehler: %s" % (name, e["fehler"]), flush=True)
+        e = measure(folder, inp, elset)
+        results[name] = e
+        if "error" in e:
+            lines.append("| %s | - | - | - | - | - | - | Fehler: %s |" % (name, e["error"]))
+            print("%-28s Fehler: %s" % (name, e["error"]), flush=True)
             continue
-        zeile = ("| %s | %.2f s | %.2f s | %.2f s | **%.2f s** | %.2f s | %d | %d |"
+        line = ("| %s | %.2f s | %.2f s | %.2f s | **%.2f s** | %.2f s | %d | %d |"
                  % (name, e["import"], e["cg"], e["size"], e["prep"],
-                    e["import"] + e["cg"] + e["size"] + e["prep"], e["elemente"], e["paare"]))
-        zeilen.append(zeile)
-        print(zeile, flush=True)
-    zeilen.append("")
+                    e["import"] + e["cg"] + e["size"] + e["prep"], e["elements"], e["pairs"]))
+        lines.append(line)
+        print(line, flush=True)
+    lines.append("")
 
-    werte = [e for e in ergebnisse.values() if "fehler" not in e]
-    if len(werte) == 2 and werte[0]["paare"] == werte[1]["paare"] \
-            and abs(werte[0]["mittel"] - werte[1]["mittel"]) < 1e-9:
-        zeilen.append("Beide Kopien finden dieselbe mittlere Elementgroesse (%.4f mm) und "
+    valid = [e for e in results.values() if "error" not in e]
+    if len(valid) == 2 and valid[0]["pairs"] == valid[1]["pairs"] \
+            and abs(valid[0]["mean_size"] - valid[1]["mean_size"]) < 1e-9:
+        lines.append("Beide Kopien finden dieselbe mittlere Elementgroesse (%.4f mm) und "
                       "dieselbe Zahl Nachbarpaare (%d) - das Ergebnis der Rechnung ist "
-                      "identisch." % (werte[0]["mittel"], werte[0]["paare"]))
-    with open(BERICHT, "w", encoding="utf8") as fh:
-        fh.write("\n".join(zeilen) + "\n")
-    print("Bericht: %s" % BERICHT)
+                      "identisch." % (valid[0]["mean_size"], valid[0]["pairs"]))
+    with open(REPORT, "w", encoding="utf8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    print("Bericht: %s" % REPORT)
 
 
 main()

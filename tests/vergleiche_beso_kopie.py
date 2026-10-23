@@ -23,36 +23,36 @@ import difflib
 import os
 import sys
 
-HIER = os.path.dirname(os.path.abspath(__file__))
-KOPIE = os.path.join(os.path.dirname(HIER), "freecad", "TopoOpt", "beso")
+HERE = os.path.dirname(os.path.abspath(__file__))
+COPY = os.path.join(os.path.dirname(HERE), "freecad", "TopoOpt", "beso")
 # beso's own FreeCAD dialog is deliberately not bundled - the assistant takes its place
-NICHT_GEBUENDELT = ("beso_fc_gui.py",)
+NOT_BUNDLED = ("beso_fc_gui.py",)
 
 
-def zeilen(pfad):
-    with open(pfad, encoding="utf8", errors="replace") as fh:
+def read_lines(path):
+    with open(path, encoding="utf8", errors="replace") as fh:
         # CRLF must not count as a difference: upstream ships mixed line endings
         return fh.read().replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
 
-def hunks(alt, neu):
+def hunks(old_lines, new_lines):
     """(start line, lines, documented) per difference."""
-    ergebnis = []
+    result = []
     block = []
     start = 0
-    for zeile in difflib.unified_diff(alt, neu, n=2, lineterm=""):
-        if zeile.startswith("@@"):
+    for line in difflib.unified_diff(old_lines, new_lines, n=2, lineterm=""):
+        if line.startswith("@@"):
             if block:
-                ergebnis.append((start, block))
-            block = [zeile]
-            start = int(zeile.split("-")[1].split(",")[0])
+                result.append((start, block))
+            block = [line]
+            start = int(line.split("-")[1].split(",")[0])
         elif block:
-            if zeile.startswith("+++") or zeile.startswith("---"):
+            if line.startswith("+++") or line.startswith("---"):
                 continue
-            block.append(zeile)
+            block.append(line)
     if block:
-        ergebnis.append((start, block))
-    return [(s, b, any("TopoOpt:" in z for z in b)) for s, b in ergebnis]
+        result.append((start, block))
+    return [(s, b, any("TopoOpt:" in z for z in b)) for s, b in result]
 
 
 def main():
@@ -62,42 +62,42 @@ def main():
         print("FEHLT Kein Original-beso unter %s" % original)
         print("      git clone --depth 1 https://github.com/calculix/beso.git %s" % original)
         return 1
-    print("Vergleich: %s\n     gegen: %s\n" % (KOPIE, original))
+    print("Vergleich: %s\n     gegen: %s\n" % (COPY, original))
 
-    fehlende = []
-    undokumentiert = 0
+    missing = []
+    undocumented = 0
     for name in sorted(os.listdir(original)):
         if not name.endswith(".py"):
             continue
-        alt = zeilen(os.path.join(original, name))
-        neu_pfad = os.path.join(KOPIE, name)
-        if not os.path.isfile(neu_pfad):
-            if name in NICHT_GEBUENDELT:
+        old_lines = read_lines(os.path.join(original, name))
+        new_path = os.path.join(COPY, name)
+        if not os.path.isfile(new_path):
+            if name in NOT_BUNDLED:
                 print("%-18s nicht gebuendelt (so gewollt)" % name)
             else:
-                fehlende.append(name)
+                missing.append(name)
                 print("%-18s FEHLT in der Kopie" % name)
             continue
-        neu = zeilen(neu_pfad)
-        if alt == neu:
+        new_lines = read_lines(new_path)
+        if old_lines == new_lines:
             print("%-18s unveraendert" % name)
             continue
-        stellen = hunks(alt, neu)
+        changes = hunks(old_lines, new_lines)
         print("%-18s %d Unterschied(e), davon %d ohne TopoOpt-Kommentar"
-              % (name, len(stellen), sum(1 for _, _, d in stellen if not d)))
-        for start, block, dokumentiert in stellen:
-            print("    ab Zeile %d%s" % (start, "" if dokumentiert else "   <-- nicht dokumentiert"))
-            for zeile in block:
-                if zeile.startswith("+") and "TopoOpt:" not in zeile:
-                    print("      neu: %s" % zeile[1:].strip()[:88])
-                elif zeile.startswith("-") and not zeile.startswith("---"):
-                    print("      alt: %s" % zeile[1:].strip()[:88])
-            if not dokumentiert:
-                undokumentiert += 1
+              % (name, len(changes), sum(1 for _, _, d in changes if not d)))
+        for start, block, documented in changes:
+            print("    ab Zeile %d%s" % (start, "" if documented else "   <-- nicht dokumentiert"))
+            for line in block:
+                if line.startswith("+") and "TopoOpt:" not in line:
+                    print("      neu: %s" % line[1:].strip()[:88])
+                elif line.startswith("-") and not line.startswith("---"):
+                    print("      alt: %s" % line[1:].strip()[:88])
+            if not documented:
+                undocumented += 1
     print()
-    if fehlende or undokumentiert:
+    if missing or undocumented:
         print("FEHLT %d Datei(en) fehlen, %d Unterschied(e) ohne TopoOpt-Kommentar"
-              % (len(fehlende), undokumentiert))
+              % (len(missing), undocumented))
         return 1
     print("OK alle Unterschiede sind mit TopoOpt-Kommentaren belegt")
     return 0

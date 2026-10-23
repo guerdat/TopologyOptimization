@@ -182,6 +182,7 @@ class AssistantPanel:
         self.mesh = None
         self.solver = None
         self._closed = False
+        self._loaded = False      # the first look at the document has happened
         self._step = 1
         self._robust_data = None      # element data from the .inp (fetched once)
         self._robust_result = None   # result of the robust radius search (once)
@@ -234,7 +235,10 @@ class AssistantPanel:
 
         self._show_step(1)
 
-        QtCore.QTimer.singleShot(50, self.load)
+        # the panel looks at the document by itself when it opens - but only once:
+        # a load() that already happened (a test calls it right away) must not be
+        # repeated later by the timer, it would overwrite the current status line.
+        QtCore.QTimer.singleShot(50, self._load_if_needed)
 
     # ------------------------------------------------------------------ UI
     def _show_step(self, number):
@@ -1326,8 +1330,19 @@ class AssistantPanel:
                              % (COLOR_OK, translate(title), value.Label))
         self.header.setText(" &nbsp;|&nbsp; ".join(parts))
 
+    def _load_if_needed(self):
+        """Look at the document when the panel opens - but not a second time.
+
+        The timer fires 50 ms after the panel was built.  If load() has already
+        run by then (a test does that right away), the second look would only
+        overwrite the status line of the check.
+        """
+        if not self._loaded:
+            self.load()
+
     def load(self):
         """Look at analysis, mesh and an existing input file. Writes nothing."""
+        self._loaded = True
         QtWidgets.QApplication.processEvents()
         self._set_status(translate("Looking for the analysis, the mesh and an existing "
                                     "CalculiX input file ..."))

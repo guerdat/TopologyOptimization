@@ -31,10 +31,10 @@ import tempfile
 import time
 import traceback
 
-HIER = os.path.dirname(os.path.abspath(__file__))
-MODELLE = os.path.join(HIER, "szenarien")
-BERICHT = os.path.join(HIER, "szenario_bericht.md")
-ARBEIT = os.path.join(tempfile.gettempdir(), "topoopt_szenarien")
+HERE = os.path.dirname(os.path.abspath(__file__))
+MODELS = os.path.join(HERE, "szenarien")
+REPORT = os.path.join(HERE, "szenario_bericht.md")
+WORK = os.path.join(tempfile.gettempdir(), "topoopt_szenarien")
 # The unmodified original beso for the comparison (https://github.com/calculix/beso):
 #     git clone --depth 1 https://github.com/calculix/beso.git
 # The path comes either from the environment variable BESO_ORIGINAL or from a clone in
@@ -42,20 +42,20 @@ ARBEIT = os.path.join(tempfile.gettempdir(), "topoopt_szenarien")
 ORIGINAL_BESO = os.environ.get("BESO_ORIGINAL",
                                os.path.join(tempfile.gettempdir(), "beso-original"))
 
-zeilen = []
-ergebnisse = []
+lines = []
+results = []
 
 
-def sag(text=""):
-    zeilen.append(str(text))
+def say(text=""):
+    lines.append(str(text))
     print(text, flush=True)
 
 
-def pruefe(name, bedingung, detail=""):
-    marke = "OK  " if bedingung else "FEHLT"
-    sag("%s %s%s" % (marke, name, (" (%s)" % detail) if detail else ""))
-    ergebnisse.append({"name": name, "ok": bool(bedingung), "detail": detail})
-    return bool(bedingung)
+def check(name, condition, detail=""):
+    marker = "OK  " if condition else "FEHLT"
+    say("%s %s%s" % (marker, name, (" (%s)" % detail) if detail else ""))
+    results.append({"name": name, "ok": bool(condition), "detail": detail})
+    return bool(condition)
 
 
 # --------------------------------------------------------------------------- #
@@ -64,230 +64,230 @@ def pruefe(name, bedingung, detail=""):
 class Fake(object):
     """Carrier of the run parameters (like the optimization object in the assistant)."""
 
-    def __init__(self, zielmasse=0.6, filter_liste=None, iterationen="2", dicke=None,
-                 dicken_modus="auto", stress=None):
-        self.MassGoalRatio = zielmasse
+    def __init__(self, target_mass=0.6, filter_list=None, iterations="2", thickness=None,
+                 thickness_mode="auto", stress=None):
+        self.MassGoalRatio = target_mass
         self.OptimizationBase = "stiffness"
-        self.IterationsLimit = iterationen
+        self.IterationsLimit = iterations
         self.Tolerance = 1e-3
         self.CpuCores = 0
-        self.Filters = json.dumps(filter_liste or [["simple", "auto"]])
+        self.Filters = json.dumps(filter_list or [["simple", "auto"]])
         self.RobusterRadius = 0.0
         self.MittlereGroesse = 0.0
         self.MassChange = "normal"
         self.SaveIterations = 1
         self.ResultFormat = "inp vtk"
         self.StressLimits = stress or []
-        self.DICKEN = dicke
-        self.DICKEN_MODUS = dicken_modus
+        self.DICKEN = thickness
+        self.DICKEN_MODUS = thickness_mode
 
 
-def _kopiere_beso(ziel, quelle):
+def _copy_beso(target, source):
     """Copy beso (original or bundled) into the run directory."""
-    if os.path.isdir(ziel):
-        shutil.rmtree(ziel)
-    shutil.copytree(quelle, ziel)
-    return ziel
+    if os.path.isdir(target):
+        shutil.rmtree(target)
+    shutil.copytree(source, target)
+    return target
 
 
-def _conf_fuer(modell, einstellungen, ordner, beso_ordner):
+def _conf_for(model, settings, folder, beso_folder):
     """Write a beso_conf.py by hand (without the addon) so that both
     beso variants get exactly the same configuration."""
     from freecad.TopoOpt.core import elsets as elset_reader
-    doms = [n for n in elset_reader.read_elsets(modell) if n.lower() not in
+    doms = [n for n in elset_reader.read_elsets(model) if n.lower() not in
             ("eall", "efaces", "evolumes", "eedges", "enodes")]
     domain = sorted(doms)[0]
-    dicken = elset_reader.read_shell_thicknesses(modell)
+    thicknesses = elset_reader.read_shell_thicknesses(model)
     # without a thickness: beso's example value 1.0 (that is the error case)
-    dicke_zeile = ""
-    if einstellungen.get("dicken_modus") == "auto" and domain in dicken:
-        d = dicken[domain]
-        dicke_zeile = "domain_thickness[%r] = [%r, %r]\n" % (domain, d, d)
-    elif einstellungen.get("dicken_modus") == "ohne":
+    thickness_line = ""
+    if settings.get("thickness_mode") == "auto" and domain in thicknesses:
+        d = thicknesses[domain]
+        thickness_line = "domain_thickness[%r] = [%r, %r]\n" % (domain, d, d)
+    elif settings.get("thickness_mode") == "ohne":
         pass                      # nothing -> beso takes 1.0 from its template
     # beso_main reads the configuration from ITS OWN directory (beso_conf.py) - the
     # original template is saved first, otherwise we would overwrite it
-    vorlage = os.path.join(beso_ordner, "beso_conf_vorlage.py")
-    if not os.path.isfile(vorlage):
-        shutil.copyfile(os.path.join(beso_ordner, "beso_conf.py"), vorlage)
+    template = os.path.join(beso_folder, "beso_conf_vorlage.py")
+    if not os.path.isfile(template):
+        shutil.copyfile(os.path.join(beso_folder, "beso_conf.py"), template)
     # beso does not know "robust" - the addon replaces it with a radius beforehand
-    filter_liste = [list(f) for f in einstellungen["filter"]]
-    for eintrag in filter_liste:
-        if len(eintrag) > 1 and eintrag[1] == "robust":
-            from freecad.TopoOpt.core import radius as radius_modul
-            daten = radius_modul.read_data(modell, [domain], [domain])
-            eintrag[1] = round(radius_modul.robust(daten).get("radius",
-                                                              daten.get("mean", 1.0) * 2), 4)
-    conf = os.path.join(beso_ordner, "beso_conf.py")
+    filter_list = [list(f) for f in settings["filter"]]
+    for entry in filter_list:
+        if len(entry) > 1 and entry[1] == "robust":
+            from freecad.TopoOpt.core import radius as radius_module
+            data = radius_module.read_data(model, [domain], [domain])
+            entry[1] = round(radius_module.robust(data).get("radius",
+                                                              data.get("mean", 1.0) * 2), 4)
+    conf = os.path.join(beso_folder, "beso_conf.py")
     with open(conf, "w", encoding="utf8") as fh:
-        fh.write("target_path = %r\n" % ordner)
-        fh.write("path = %r\n" % ordner)
-        fh.write("file_name = %r\n" % os.path.basename(modell))
+        fh.write("target_path = %r\n" % folder)
+        fh.write("path = %r\n" % folder)
+        fh.write("file_name = %r\n" % os.path.basename(model))
         fh.write("path_calculix = %r\n" % _ccx())
         fh.write("elset_name = %r\n" % domain)
         fh.write("domain_optimized = {%r: True}\n" % domain)
         fh.write("domain_density[%r] = [1e-6, 1.0]\n" % domain)
-        zeile_material = ("domain_material[%r] = ['*ELASTIC" + chr(92) + "n0.21, 0.3', "
+        material_line = ("domain_material[%r] = ['*ELASTIC" + chr(92) + "n0.21, 0.3', "
                           "'*ELASTIC" + chr(92) + "n210000, 0.3']") % domain
-        fh.write(zeile_material + chr(10))
-        if dicke_zeile:
-            fh.write(dicke_zeile)
-        fh.write("mass_goal_ratio = %r\n" % einstellungen["zielmasse"])
-        fh.write("filter_list = %r\n" % (filter_liste,))
-        fh.write("optimization_base = %r\n" % einstellungen.get("basis", "stiffness"))
+        fh.write(material_line + chr(10))
+        if thickness_line:
+            fh.write(thickness_line)
+        fh.write("mass_goal_ratio = %r\n" % settings["target_mass"])
+        fh.write("filter_list = %r\n" % (filter_list,))
+        fh.write("optimization_base = %r\n" % settings.get("base", "stiffness"))
         # permissible stress per domain - one domain deliberately has none
-        for dn, wert in (einstellungen.get("sigma") or {}).items():
-            zeile = ("domain_FI[%r] = [[('stress_von_Mises', %r)], "
-                     "[('stress_von_Mises', %r)]]\n") % (dn, wert * 1e6, wert * 1e6)
-            fh.write(zeile)
+        for dn, value in (settings.get("sigma") or {}).items():
+            line = ("domain_FI[%r] = [[('stress_von_Mises', %r)], "
+                     "[('stress_von_Mises', %r)]]\n") % (dn, value * 1e6, value * 1e6)
+            fh.write(line)
         # a second domain: computed, but not optimized
-        zweite = einstellungen.get("zweite_domain")
-        if zweite:
-            fh.write("domain_optimized[%r] = False\n" % zweite)
-            fh.write("domain_density[%r] = [1e-6, 1.0]\n" % zweite)
+        second = settings.get("second_domain")
+        if second:
+            fh.write("domain_optimized[%r] = False\n" % second)
+            fh.write("domain_density[%r] = [1e-6, 1.0]\n" % second)
             fh.write(("domain_material[%r] = ['*ELASTIC" + chr(92) + "n0.21, 0.3', "
-                      "'*ELASTIC" + chr(92) + "n70000, 0.33']") % zweite + chr(10))
+                      "'*ELASTIC" + chr(92) + "n70000, 0.33']") % second + chr(10))
         fh.write("mass_addition_ratio = 0.015\n")
         fh.write("mass_removal_ratio = 0.03\n")
         fh.write("ratio_type = 'relative'\n")
-        grenze = einstellungen["iterationen"]
-        fh.write("iterations_limit = %s\n" % (grenze if str(grenze) == "auto" else int(grenze)))
+        limit = settings["iterations"]
+        fh.write("iterations_limit = %s\n" % (limit if str(limit) == "auto" else int(limit)))
         fh.write("tolerance = 0.001\n")
         fh.write("cpu_cores = 0\n")
         fh.write("save_iteration_results = 1\n")
         fh.write("save_resulting_format = 'inp vtk'\n")
         fh.write("import matplotlib as _mpl\n_mpl.use('Agg')\n")
-    return conf, domain, dicken
+    return conf, domain, thicknesses
 
 
 def _ccx():
-    from freecad.TopoOpt.core import conf as conf_modul
-    return conf_modul.calculix_path()
+    from freecad.TopoOpt.core import conf as conf_module
+    return conf_module.calculix_path()
 
 
-def lauf(name, modell, einstellungen, beso_quelle=None):
+def run(name, model, settings, beso_source=None):
     """Execute one beso run and evaluate it."""
-    from freecad.TopoOpt.core import beso as beso_modul
-    from freecad.TopoOpt.core import conf as conf_modul
-    from freecad.TopoOpt.core import lauf as lauf_modul
+    from freecad.TopoOpt.core import beso as beso_module
+    from freecad.TopoOpt.core import conf as conf_module
+    from freecad.TopoOpt.core import run as run_module
 
-    ordner = os.path.join(ARBEIT, name.replace(" ", "_").replace("/", "_"))
-    if os.path.isdir(ordner):
+    folder = os.path.join(WORK, name.replace(" ", "_").replace("/", "_"))
+    if os.path.isdir(folder):
         try:
-            shutil.rmtree(ordner)
+            shutil.rmtree(folder)
         except OSError:
             # Windows releases files with a delay - then take a fresh directory
-            ordner = "%s_%d" % (ordner, int(time.time()))
-    os.makedirs(ordner)
-    ziel = _kopiere_beso(os.path.join(ordner, "beso"), beso_quelle or beso_modul.FOLDER)
-    shutil.copyfile(modell, os.path.join(ordner, os.path.basename(modell)))
-    conf, domain, dicken = _conf_fuer(modell, einstellungen, ordner, ziel)
-    log = conf_modul.log_path(os.path.join(ordner, os.path.basename(modell)))
+            folder = "%s_%d" % (folder, int(time.time()))
+    os.makedirs(folder)
+    target = _copy_beso(os.path.join(folder, "beso"), beso_source or beso_module.FOLDER)
+    shutil.copyfile(model, os.path.join(folder, os.path.basename(model)))
+    conf, domain, thicknesses = _conf_for(model, settings, folder, target)
+    log = conf_module.log_path(os.path.join(folder, os.path.basename(model)))
     start = time.time()
-    prozess = subprocess.Popen([conf_modul.python_path(), os.path.join(ziel, "beso_main.py")],
-                               cwd=ordner, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    process = subprocess.Popen([conf_module.python_path(), os.path.join(target, "beso_main.py")],
+                               cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True)
-    ausgabe = ""
+    output = ""
     try:
-        ausgabe, _ = prozess.communicate(timeout=600)
+        output, _ = process.communicate(timeout=600)
     except subprocess.TimeoutExpired:
-        prozess.kill()
-        ausgabe = "TIMEOUT"
-    dauer = time.time() - start
-    daten = lauf_modul.progress(conf_modul.beso_log_path(os.path.join(
-        ordner, os.path.basename(modell))), einstellungen["zielmasse"])
-    fehler = [z.strip() for z in (ausgabe or "").splitlines()
+        process.kill()
+        output = "TIMEOUT"
+    duration = time.time() - start
+    data = run_module.progress(conf_module.beso_log_path(os.path.join(
+        folder, os.path.basename(model))), settings["target_mass"])
+    errors = [z.strip() for z in (output or "").splitlines()
               if "Error:" in z or "ERROR:" in z or "Exception" in z]
-    return {"name": name, "ordner": ordner, "code": prozess.returncode, "dauer": dauer,
-            "massen": daten.get("masses", []), "domain": domain, "dicken": dicken,
-            "fehler": fehler[-3:], "fehlerfrei": prozess.returncode == 0}
+    return {"name": name, "folder": folder, "code": process.returncode, "duration": duration,
+            "masses": data.get("masses", []), "domain": domain, "thicknesses": thicknesses,
+            "errors": errors[-3:], "error_free": process.returncode == 0}
 
 
 # --------------------------------------------------------------------------- #
 # A) error cases in the assistant
 # --------------------------------------------------------------------------- #
-def fehlerfaelle():
-    sag("## A) Fehlerfaelle im Assistenten")
-    sag()
+def error_cases():
+    say("## A) Fehlerfaelle im Assistenten")
+    say()
     try:
         import FreeCAD as App
         import FreeCADGui as Gui  # noqa: F401
         from freecad.TopoOpt.features import create_topology_object
         from freecad.TopoOpt.gui.assistant import AssistantPanel
     except Exception as exc:
-        sag("(uebersprungen - ohne GUI: %s)" % exc)
-        sag()
+        say("(uebersprungen - ohne GUI: %s)" % exc)
+        say()
         return
-    quelle = os.path.join(tempfile.gettempdir(), "TopoOpt_Test", "modell.FCStd")
-    if not os.path.isfile(quelle):
-        sag("(uebersprungen - Testdokument fehlt: %s)" % quelle)
-        sag()
+    source = os.path.join(tempfile.gettempdir(), "TopoOpt_Test", "modell.FCStd")
+    if not os.path.isfile(source):
+        say("(uebersprungen - Testdokument fehlt: %s)" % source)
+        say()
         return
-    kopie = os.path.join(tempfile.gettempdir(), "TopoOpt_Szenario.FCStd")
-    shutil.copyfile(quelle, kopie)
-    doc = App.openDocument(kopie)
-    analyse = [o for o in doc.Objects if o.TypeId == "Fem::FemAnalysis"][0]
-    netz = [o for o in doc.Objects if o.TypeId.startswith("Fem::FemMesh")][0]
+    copy = os.path.join(tempfile.gettempdir(), "TopoOpt_Szenario.FCStd")
+    shutil.copyfile(source, copy)
+    doc = App.openDocument(copy)
+    analysis = [o for o in doc.Objects if o.TypeId == "Fem::FemAnalysis"][0]
+    mesh = [o for o in doc.Objects if o.TypeId.startswith("Fem::FemMesh")][0]
     solver = [o for o in doc.Objects if o.TypeId.startswith("Fem::FemSolver")][0]
 
-    def panel_bauen():
-        obj = create_topology_object(doc, analyse, "Szenario%d" % int(time.time() * 1000 % 10000))
+    def build_panel():
+        obj = create_topology_object(doc, analysis, "Szenario%d" % int(time.time() * 1000 % 10000))
         panel = AssistantPanel(obj)
         panel._show_step(3)
         return obj, panel
 
     # 1) without a mesh
-    doc.removeObject(netz.Name)
+    doc.removeObject(mesh.Name)
     doc.recompute()
-    obj, panel = panel_bauen()
+    obj, panel = build_panel()
     panel._start_run()
-    pruefe("ohne Netz startet kein Lauf",
+    check("ohne Netz startet kein Lauf",
            panel._run_process is None and "Netz" in panel.run_status.text(),
            panel.run_status.text())
     # 2) without a solver (mesh back in place)
-    doc.addObject(netz.TypeId, netz.Name)
+    doc.addObject(mesh.TypeId, mesh.Name)
     doc.recompute()
     doc.removeObject(solver.Name)
     doc.recompute()
-    obj, panel = panel_bauen()
+    obj, panel = build_panel()
     panel._start_run()
-    pruefe("ohne Solver startet kein Lauf",
+    check("ohne Solver startet kein Lauf",
            panel._run_process is None and "Solver" in panel.run_status.text(),
            panel.run_status.text())
     doc.addObject(solver.TypeId, solver.Name)
     doc.recompute()
     # 3) without .inp
-    obj, panel = panel_bauen()
+    obj, panel = build_panel()
     obj.InpFile = ""
     panel._start_run()
-    pruefe("ohne Eingabedatei startet kein Lauf",
+    check("ohne Eingabedatei startet kein Lauf",
            panel._run_process is None and "Eingabedatei" in panel.run_status.text(),
            panel.run_status.text())
     # 4) without design space
-    obj, panel = panel_bauen()
+    obj, panel = build_panel()
     panel.stress = {}
     for name in list(panel.domains):
         panel.domains[name] = "ignore"
     panel._save_domains()
     panel._start_run()
-    pruefe("ohne Design-Raum startet kein Lauf",
+    check("ohne Design-Raum startet kein Lauf",
            panel._run_process is None and "Design" in panel.run_status.text(),
            panel.run_status.text())
     App.closeDocument(doc.Name)
     try:
-        os.remove(kopie)
+        os.remove(copy)
     except OSError:
         pass
-    sag()
+    say()
 
 
 # --------------------------------------------------------------------------- #
 # B) computation matrix
 # --------------------------------------------------------------------------- #
-MODELL_3D = os.path.join(MODELLE, "modell_3d_hex.inp")
-MODELL_2D = os.path.join(MODELLE, "modell_2d_schale.inp")
-MODELL_2D_OHNE = os.path.join(MODELLE, "modell_2d_ohne_dicke.inp")
-MODELL_2SETS = os.path.join(MODELLE, "modell_2sets.inp")
+MODEL_3D = os.path.join(MODELS, "modell_3d_hex.inp")
+MODEL_2D = os.path.join(MODELS, "modell_2d_schale.inp")
+MODEL_2D_NO_THICKNESS = os.path.join(MODELS, "modell_2d_ohne_dicke.inp")
+MODEL_2SETS = os.path.join(MODELS, "modell_2sets.inp")
 
 # Scenarios in which our beso deliberately reacts differently from the original:
 #   * filter radius too small - the original keeps computing without a filter and
@@ -298,150 +298,150 @@ MODELL_2SETS = os.path.join(MODELLE, "modell_2sets.inp")
 #     np.linalg.linalg was removed there (measured with numpy 2.4); casting with "auto"
 #     additionally aborts with a NameError.  Our beso computes in both cases.
 # Measured with FreeCAD 26.3 (Flatpak) and numpy 2.4: 13 of 17 scenarios identical.
-BEKANNTE_ABWEICHUNGEN = ("2D Schale casting auto", "2D Schale simple auto",
+KNOWN_DEVIATIONS = ("2D Schale casting auto", "2D Schale simple auto",
                          "3D simple 1.5 (Radius zu klein)", "3D simple manuell 1.0")
 
 MATRIX = [
-    ("3D simple auto", MODELL_3D, {"zielmasse": 0.6, "filter": [["simple", "auto"]],
-                                   "iterationen": "2", "dicken_modus": "auto"}),
-    ("3D simple 1.5 (Radius zu klein)", MODELL_3D, {"zielmasse": 0.6,
+    ("3D simple auto", MODEL_3D, {"target_mass": 0.6, "filter": [["simple", "auto"]],
+                                   "iterations": "2", "thickness_mode": "auto"}),
+    ("3D simple 1.5 (Radius zu klein)", MODEL_3D, {"target_mass": 0.6,
                                                     "filter": [["simple", 1.5]],
-                                                    "iterationen": "2",
-                                                    "dicken_modus": "auto"}),
-    ("3D simple robust", MODELL_3D, {"zielmasse": 0.6, "filter": [["simple", "robust"]],
-                                     "iterationen": "2", "dicken_modus": "auto"}),
-    ("3D simple manuell 1.0", MODELL_3D, {"zielmasse": 0.6, "filter": [["simple", 1.0]],
-                                         "iterationen": "2", "dicken_modus": "auto"}),
-    ("3D zwei Sets, eines ohne sigma", MODELL_2SETS,
-     {"zielmasse": 0.6, "filter": [["simple", "auto"]], "iterationen": "2",
-      "dicken_modus": "auto", "basis": "failure_index",
-      "sigma": {"SetA": 235.0}, "zweite_domain": "SetB"}),
-    ("3D casting auto", MODELL_3D, {"zielmasse": 0.6,
+                                                    "iterations": "2",
+                                                    "thickness_mode": "auto"}),
+    ("3D simple robust", MODEL_3D, {"target_mass": 0.6, "filter": [["simple", "robust"]],
+                                     "iterations": "2", "thickness_mode": "auto"}),
+    ("3D simple manuell 1.0", MODEL_3D, {"target_mass": 0.6, "filter": [["simple", 1.0]],
+                                         "iterations": "2", "thickness_mode": "auto"}),
+    ("3D zwei Sets, eines ohne sigma", MODEL_2SETS,
+     {"target_mass": 0.6, "filter": [["simple", "auto"]], "iterations": "2",
+      "thickness_mode": "auto", "base": "failure_index",
+      "sigma": {"SetA": 235.0}, "second_domain": "SetB"}),
+    ("3D casting auto", MODEL_3D, {"target_mass": 0.6,
                                     "filter": [["casting", 1.5, (0, 0, 1)]],
-                                    "iterationen": "2", "dicken_modus": "auto"}),
-    ("3D Zielmasse 30%", MODELL_3D, {"zielmasse": 0.3, "filter": [["simple", "auto"]],
-                                     "iterationen": "2", "dicken_modus": "auto"}),
-    ("2D Schale simple auto", MODELL_2D, {"zielmasse": 0.6, "filter": [["simple", "auto"]],
-                                          "iterationen": "2", "dicken_modus": "auto"}),
-    ("2D Schale casting auto", MODELL_2D, {"zielmasse": 0.6,
+                                    "iterations": "2", "thickness_mode": "auto"}),
+    ("3D Zielmasse 30%", MODEL_3D, {"target_mass": 0.3, "filter": [["simple", "auto"]],
+                                     "iterations": "2", "thickness_mode": "auto"}),
+    ("2D Schale simple auto", MODEL_2D, {"target_mass": 0.6, "filter": [["simple", "auto"]],
+                                          "iterations": "2", "thickness_mode": "auto"}),
+    ("2D Schale casting auto", MODEL_2D, {"target_mass": 0.6,
                                            "filter": [["casting", "auto", (0, 0, 1)]],
-                                           "iterationen": "2", "dicken_modus": "auto"}),
-    ("2D ohne Dicke (Fehlerfall)", MODELL_2D_OHNE,
-     {"zielmasse": 0.6, "filter": [["simple", "auto"]], "iterationen": "2",
-      "dicken_modus": "ohne"}),
+                                           "iterations": "2", "thickness_mode": "auto"}),
+    ("2D ohne Dicke (Fehlerfall)", MODEL_2D_NO_THICKNESS,
+     {"target_mass": 0.6, "filter": [["simple", "auto"]], "iterations": "2",
+      "thickness_mode": "ohne"}),
 ]
 # try every morphology filter once
-for _typ in ("erode sensitivity", "dilate sensitivity", "open sensitivity",
+for _filter_type in ("erode sensitivity", "dilate sensitivity", "open sensitivity",
              "close sensitivity", "open-close sensitivity", "close-open sensitivity",
              "combine sensitivity"):
-    MATRIX.append(("3D %s" % _typ.split()[0], MODELL_3D,
-                   {"zielmasse": 0.6, "filter": [[_typ, 1.5]], "iterationen": "1",
-                    "dicken_modus": "auto"}))
+    MATRIX.append(("3D %s" % _filter_type.split()[0], MODEL_3D,
+                   {"target_mass": 0.6, "filter": [[_filter_type, 1.5]], "iterations": "1",
+                    "thickness_mode": "auto"}))
 
 
-def rechenmatrix(beso_quelle=None, praefix=""):
-    from freecad.TopoOpt.core import beso as beso_modul
-    quelle = beso_quelle or beso_modul.FOLDER
-    laeufe = []
-    for name, modell, einst in MATRIX:
+def compute_matrix(beso_source=None, prefix=""):
+    from freecad.TopoOpt.core import beso as beso_module
+    source = beso_source or beso_module.FOLDER
+    runs = []
+    for name, model, setting in MATRIX:
         try:
-            ergebnis = lauf(praefix + name, modell, einst, quelle)
+            result = run(prefix + name, model, setting, source)
         except Exception as exc:
-            sag("FEHLT %s: %s" % (name, exc))
+            say("FEHLT %s: %s" % (name, exc))
             traceback.print_exc()
             continue
-        laeufe.append(ergebnis)
-        massen = ergebnis["massen"]
-        sag("%-34s code=%s  %5.1f s  Massen=%s"
-            % (name, ergebnis["code"], ergebnis["dauer"],
-               [round(m, 1) if m else m for _, m in massen]))
-        if ergebnis["fehler"]:
-            sag("      Meldung: %s" % (ergebnis["fehler"],))
-    return laeufe
+        runs.append(result)
+        masses = result["masses"]
+        say("%-34s code=%s  %5.1f s  Massen=%s"
+            % (name, result["code"], result["duration"],
+               [round(m, 1) if m else m for _, m in masses]))
+        if result["errors"]:
+            say("      Meldung: %s" % (result["errors"],))
+    return runs
 
 
-def berichte_laeufe(laeufe, titel):
-    sag("## %s" % titel)
-    sag()
-    for e in laeufe:
-        massen = [round(m, 2) if m else m for _, m in e["massen"]]
-        fiel = (massen[-1] < massen[0]) if len(massen) > 1 else None
-        sag("- **%s**: code=%s, %.1f s, %d Zeilen, Masse %s%s"
-            % (e["name"], e["code"], e["dauer"], len(massen), massen,
-               "" if fiel is None else (", faellt ab" if fiel else ", STEIGT")))
-    sag()
+def report_runs(runs, title):
+    say("## %s" % title)
+    say()
+    for e in runs:
+        masses = [round(m, 2) if m else m for _, m in e["masses"]]
+        fell = (masses[-1] < masses[0]) if len(masses) > 1 else None
+        say("- **%s**: code=%s, %.1f s, %d Zeilen, Masse %s%s"
+            % (e["name"], e["code"], e["duration"], len(masses), masses,
+               "" if fell is None else (", faellt ab" if fell else ", STEIGT")))
+    say()
 
 
 # --------------------------------------------------------------------------- #
 # D) comparison with the original beso
 # --------------------------------------------------------------------------- #
-def vergleich_original():
+def compare_original():
     """Original beso (without our fixes) against the bundled beso on the same models."""
-    sag("## D) Vergleich: gebuendeltes beso gegen unveraendertes beso von GitHub (upstream)")
-    sag()
+    say("## D) Vergleich: gebuendeltes beso gegen unveraendertes beso von GitHub (upstream)")
+    say()
     if not os.path.isdir(ORIGINAL_BESO):
-        sag("(uebersprungen - bitte das Original klonen: git clone --depth 1 "
+        say("(uebersprungen - bitte das Original klonen: git clone --depth 1 "
             "https://github.com/calculix/beso.git \"%s\")" % ORIGINAL_BESO)
-        sag()
+        say()
         return
-    neu = rechenmatrix(praefix="neu_")
-    alt = rechenmatrix(beso_quelle=ORIGINAL_BESO, praefix="alt_")
-    sag("### Gegenueberstellung")
-    sag()
-    sag("| Szenario | gebuendeltes beso | originales beso |")
-    sag("|---|---|---|")
-    for a, b in zip(neu, alt):
-        def kurz(e):
-            massen = [round(m, 1) if m else None for _, m in e["massen"]]
-            return "code %s, %s" % (e["code"], massen)
-        sag("| %s | %s | %s |" % (a["name"].replace("neu_", ""), kurz(a), kurz(b)))
-    gleich = sum(1 for a, b in zip(neu, alt)
-                 if [round(m, 6) for _, m in a["massen"]] == [round(m, 6) for _, m in b["massen"]])
-    abweichend = sorted(a["name"].replace("neu_", "") for a, b in zip(neu, alt)
-                        if [round(m, 6) for _, m in a["massen"]] != [round(m, 6) for _, m in b["massen"]])
-    sag("Identische Ergebnisse: %d von %d" % (gleich, len(neu)))
+    new_runs = compute_matrix(prefix="neu_")
+    old_runs = compute_matrix(beso_source=ORIGINAL_BESO, prefix="alt_")
+    say("### Gegenueberstellung")
+    say()
+    say("| Szenario | gebuendeltes beso | originales beso |")
+    say("|---|---|---|")
+    for a, b in zip(new_runs, old_runs):
+        def short_row(e):
+            masses = [round(m, 1) if m else None for _, m in e["masses"]]
+            return "code %s, %s" % (e["code"], masses)
+        say("| %s | %s | %s |" % (a["name"].replace("neu_", ""), short_row(a), short_row(b)))
+    identical = sum(1 for a, b in zip(new_runs, old_runs)
+                 if [round(m, 6) for _, m in a["masses"]] == [round(m, 6) for _, m in b["masses"]])
+    deviating = sorted(a["name"].replace("neu_", "") for a, b in zip(new_runs, old_runs)
+                        if [round(m, 6) for _, m in a["masses"]] != [round(m, 6) for _, m in b["masses"]])
+    say("Identische Ergebnisse: %d von %d" % (identical, len(new_runs)))
     # only the cases justified above under BEKANNTE_ABWEICHUNGEN may differ
-    pruefe("genau die dokumentierten Abweichungen (erwartet: %s - gemessen: %s)"
-           % (", ".join(sorted(BEKANNTE_ABWEICHUNGEN)) or "keine",
-              ", ".join(abweichend) or "keine"),
-           abweichend == sorted(BEKANNTE_ABWEICHUNGEN))
-    sag()
+    check("genau die dokumentierten Abweichungen (erwartet: %s - gemessen: %s)"
+           % (", ".join(sorted(KNOWN_DEVIATIONS)) or "keine",
+              ", ".join(deviating) or "keine"),
+           deviating == sorted(KNOWN_DEVIATIONS))
+    say()
 
 
 def main():
-    if not os.path.isdir(ARBEIT):
-        os.makedirs(ARBEIT)
-    sag("# Szenario-Matrix TopoOpt")
-    sag()
-    sag("Modelle: %s" % MODELLE)
-    sag()
-    sag("(Hinweis: die Fehlerfaelle des Assistenten prueft tests/panel_test.py)")
-    sag()
-    sag("## B/C) Rechenmatrix (gebuendeltes beso)")
-    sag()
-    laeufe = rechenmatrix()
-    berichte_laeufe(laeufe, "Ergebnisse der Rechenmatrix")
+    if not os.path.isdir(WORK):
+        os.makedirs(WORK)
+    say("# Szenario-Matrix TopoOpt")
+    say()
+    say("Modelle: %s" % MODELS)
+    say()
+    say("(Hinweis: die Fehlerfaelle des Assistenten prueft tests/panel_test.py)")
+    say()
+    say("## B/C) Rechenmatrix (gebuendeltes beso)")
+    say()
+    runs = compute_matrix()
+    report_runs(runs, "Ergebnisse der Rechenmatrix")
     # the error case without a thickness has to show clearly
-    ohne = [e for e in laeufe if "ohne Dicke" in e["name"]]
-    if ohne:
-        e = ohne[0]
-        massen = [m for _, m in e["massen"]]
-        hat = [x for x in e["fehler"] if "thickness" in x.lower()]
-        pruefe("fehlende Schalendicke wird gemeldet oder die Masse ist zu klein",
-               bool(hat) or (len(massen) > 1 and massen[0] < 100),
-               "%s / Startmasse %s" % (hat or "keine Meldung", massen[0] if massen else "-"))
-    vergleich_original()
-    fehlgeschlagen = [e for e in ergebnisse if not e["ok"]]
-    sag("## Zusammenfassung")
-    sag()
-    sag("- Pruefungen: %d, davon fehlgeschlagen: %d" % (len(ergebnisse), len(fehlgeschlagen)))
-    for e in fehlgeschlagen:
-        sag("  - FEHLT: %s (%s)" % (e["name"], e["detail"]))
-    sag("- Szenarien gerechnet: %d" % len(laeufe))
-    with open(BERICHT, "w", encoding="utf8") as fh:
-        fh.write("\n".join(zeilen) + "\n")
-    sag()
-    sag("Bericht: %s" % BERICHT)
+    without_thickness = [e for e in runs if "ohne Dicke" in e["name"]]
+    if without_thickness:
+        e = without_thickness[0]
+        masses = [m for _, m in e["masses"]]
+        hits = [x for x in e["errors"] if "thickness" in x.lower()]
+        check("fehlende Schalendicke wird gemeldet oder die Masse ist zu klein",
+               bool(hits) or (len(masses) > 1 and masses[0] < 100),
+               "%s / Startmasse %s" % (hits or "keine Meldung", masses[0] if masses else "-"))
+    compare_original()
+    failed = [e for e in results if not e["ok"]]
+    say("## Zusammenfassung")
+    say()
+    say("- Pruefungen: %d, davon fehlgeschlagen: %d" % (len(results), len(failed)))
+    for e in failed:
+        say("  - FEHLT: %s (%s)" % (e["name"], e["detail"]))
+    say("- Szenarien gerechnet: %d" % len(runs))
+    with open(REPORT, "w", encoding="utf8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    say()
+    say("Bericht: %s" % REPORT)
 
 
 main()

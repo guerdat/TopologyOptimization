@@ -41,9 +41,8 @@
   separate methods, but the file mixes them with the widgets.  Deferred on purpose: it is a
   mechanical move without a GUI test that covers it in CI, so it is done when there is a
   reason to touch the file anyway, not for its own sake.
-* **English identifiers in `core/` and `gui/`** - the texts are English (D7), but many
-  function names are German (`_lauf_starten`, `_zeige_schritt`, ...).  Renaming all of them is
-  a large diff with no behaviour change; better: new functions English, rename the rest
-  step by step during other work.
+* ~~**English identifiers in `core/` and `gui/`**~~ - **done** (D44): comments, docstrings and
+  identifiers of `core/`, `gui/` and `tests/` are English now.  The user interface stays English
+  with a German translation (D7).  The bundled beso copy and the i18n dictionary are unchanged.
 * **beso as a sub module with a patch file** instead of a copy - then drift between the fork
   and the copy is visible by itself.  Until then `tests/vergleiche_beso_kopie.py` reports it.

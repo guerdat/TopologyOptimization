@@ -17,20 +17,20 @@ import os
 import sys
 import traceback
 
-HIER = os.path.dirname(os.path.abspath(__file__))
-AUSGABE = os.path.join(HIER, "gui_test_ausgabe.txt")
-zeilen = []
-fehler = []
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUTPUT = os.path.join(HERE, "gui_test_ausgabe.txt")
+lines = []
+errors = []
 
 
 def log(text):
-    zeilen.append(str(text))
+    lines.append(str(text))
 
 
-def pruefe(bedingung, text):
-    log("%-5s %s" % ("OK" if bedingung else "FEHLT", text))
-    if not bedingung:
-        fehler.append(text)
+def check(condition, text):
+    log("%-5s %s" % ("OK" if condition else "FEHLT", text))
+    if not condition:
+        errors.append(text)
 
 
 try:
@@ -47,61 +47,61 @@ try:
 
     # 1. Workbench
     workbenches = list(Gui.listWorkbenches().keys())
-    pruefe("TopoOptWorkbench" in workbenches, "Workbench TopoOptWorkbench ist registriert")
+    check("TopoOptWorkbench" in workbenches, "Workbench TopoOptWorkbench ist registriert")
     if "TopoOptWorkbench" in workbenches:
         Gui.activateWorkbench("TopoOptWorkbench")
         Gui.updateGui()
-        fenster = Gui.getMainWindow()
-        toolbars = [tb.objectName() for tb in fenster.findChildren(QtWidgets.QToolBar)]
-        menus = [m.title() for m in fenster.menuBar().findChildren(QtWidgets.QMenu)]
-        pruefe("TopoOpt" in toolbars, "Toolbar 'TopoOpt' vorhanden")
-        pruefe("TopoOpt" in menus, "Menue 'TopoOpt' vorhanden")
+        window = Gui.getMainWindow()
+        toolbars = [tb.objectName() for tb in window.findChildren(QtWidgets.QToolBar)]
+        menus = [m.title() for m in window.menuBar().findChildren(QtWidgets.QMenu)]
+        check("TopoOpt" in toolbars, "Toolbar 'TopoOpt' vorhanden")
+        check("TopoOpt" in menus, "Menue 'TopoOpt' vorhanden")
         wb = Gui.listWorkbenches()["TopoOptWorkbench"]
-        pruefe(os.path.isfile(wb.Icon), "Workbench-Icon existiert (%s)" % wb.Icon)
+        check(os.path.isfile(wb.Icon), "Workbench-Icon existiert (%s)" % wb.Icon)
 
     # 2. Command and icon
     command = CreateOptimizationCommand()
     res = command.GetResources()
-    pruefe(command.Name == "TopoOpt_CreateOptimization", "Befehlsname ist TopoOpt_CreateOptimization")
-    pruefe(os.path.isfile(res["Pixmap"]), "Befehlssymbol existiert (%s)" % res["Pixmap"])
+    check(command.Name == "TopoOpt_CreateOptimization", "Befehlsname ist TopoOpt_CreateOptimization")
+    check(os.path.isfile(res["Pixmap"]), "Befehlssymbol existiert (%s)" % res["Pixmap"])
     log("     MenuText: %s" % res["MenuText"])
 
     # 3. no analysis
     doc = App.newDocument("TopoOptGuiTest")
-    pruefe(active_analysis() is None, "ohne Analyse ist keine aktiv")
+    check(active_analysis() is None, "ohne Analyse ist keine aktiv")
 
     # 4. analysis present and active
     analysis = doc.addObject("Fem::FemAnalysis", "Analysis")
     doc.recompute()
     import FemGui
     FemGui.setActiveAnalysis(analysis)
-    pruefe(active_analysis() is analysis, "aktive Analyse wird gefunden")
+    check(active_analysis() is analysis, "aktive Analyse wird gefunden")
 
     command.Activated()
     doc.recompute()
     obj = doc.getObject("TopologieOptimierung")
-    pruefe(obj is not None, "Befehl hat das Objekt angelegt")
+    check(obj is not None, "Befehl hat das Objekt angelegt")
     if obj is not None:
-        pruefe(obj.Name in [o.Name for o in analysis.Group], "Objekt liegt in der Analyse")
-        pruefe(os.path.isfile(obj.ViewObject.Proxy.getIcon()), "Objektsymbol existiert")
+        check(obj.Name in [o.Name for o in analysis.Group], "Objekt liegt in der Analyse")
+        check(os.path.isfile(obj.ViewObject.Proxy.getIcon()), "Objektsymbol existiert")
 
     # the assistant should have opened automatically (as with FEM commands)
     from freecad.TopoOpt.gui import assistant as assist
     panel = assist.panel_for(obj.Name) if obj is not None else None
-    pruefe(panel is not None, "Assistent oeffnet sich automatisch")
+    check(panel is not None, "Assistent oeffnet sich automatisch")
     if panel is not None:
-        ecken = panel.getStandardButtons()
-        pruefe(bool(ecken & QtWidgets.QDialogButtonBox.Ok.value), "OK-Knopf vorhanden")
-        pruefe(bool(ecken & QtWidgets.QDialogButtonBox.Close.value), "Schliessen-Knopf vorhanden")
+        corners = panel.getStandardButtons()
+        check(bool(corners & QtWidgets.QDialogButtonBox.Ok.value), "OK-Knopf vorhanden")
+        check(bool(corners & QtWidgets.QDialogButtonBox.Close.value), "Schliessen-Knopf vorhanden")
         panel._close()
-        pruefe(assist.panel_for(obj.Name) is None, "Assistent wurde geschlossen")
+        check(assist.panel_for(obj.Name) is None, "Assistent wurde geschlossen")
 
     App.closeDocument(doc.Name)
-    log("ERGEBNIS: %s" % ("OK" if not fehler else "%d FEHLER" % len(fehler)))
+    log("ERGEBNIS: %s" % ("OK" if not errors else "%d FEHLER" % len(errors)))
 except Exception:
     log("AUSNAHME:\n" + traceback.format_exc())
-    fehler.append("Ausnahme")
+    errors.append("Ausnahme")
 finally:
-    with open(AUSGABE, "w", encoding="utf8") as f:
-        f.write("\n".join(zeilen) + "\n")
-    sys.exit(1 if fehler else 0)
+    with open(OUTPUT, "w", encoding="utf8") as f:
+        f.write("\n".join(lines) + "\n")
+    sys.exit(1 if errors else 0)

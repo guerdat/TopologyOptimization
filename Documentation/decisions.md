@@ -70,7 +70,7 @@ files and the file headers.
 ## D7 - English source texts, German translation in a dictionary
 
 The UI texts in the code are English; `core/i18n.py` holds a German dictionary and is used
-when FreeCAD runs in German (`uebersetze()`), so every other language falls back to English.
+when FreeCAD runs in German (`translate()`), so every other language falls back to English.
 
 *Reason:* the addon is meant to be shared internationally, while the first users are German.
 The usual Qt workflow (`.ts` file compiled to `.qm` with `lrelease`) is not available: the
@@ -342,8 +342,8 @@ Run and results belong together: one step named "Berechnung", with a separate sm
 * The chart button is called **"Diagramme anzeigen"** and sits in the **results** group; the
   check box "open at start" is gone - the diagram window always opens when a run starts.
 * The folder button is called **"Arbeitsverzeichnis öffnen"**, the same wording as in step 1
-  (both are `uebersetze("Open working directory")`).
-* **The result is loaded automatically** when the run ends (`_lauf_aktualisieren` calls
+  (both are `translate("Open working directory")`).
+* **The result is loaded automatically** when the run ends (`_update_run` calls
   `_ergebnis_anzeigen()` on success) and there is a button **"Ergebnis laden"** that re-reads
   `resulting_states.vtk` and shows the finished network (last iteration) - deliberately read
   again, because a new run writes a new file.
@@ -368,7 +368,7 @@ scroll bar outside the panel or clickable step buttons were dropped.  The struct
   bar belongs to the content area, not to the whole task panel.
 * Below: `< Zurück` / `Weiter >` (`_schritt_zurueck`, `_schritt_weiter`); at the first step
   there is no "back", at the last none "forward" (the outer button hides).
-* `_zeige_schritt` puts the scroll bar back to the top on every step change.
+* `_show_step` puts the scroll bar back to the top on every step change.
 * Measured: the panel's minimum width dropped from **348 to 234 px** - the text bar and the
   navigation below need much less room than three toggle buttons in a row.
 
@@ -496,7 +496,7 @@ What caused `tests/headless_test.py` to abort from a fresh clone (22.09.2026)?
 
 * `.gitignore` excluded with `tests/data/*.log` the two recordings that the test needs as input:
   beso's iteration table (`beso_beispiel.log`) and its own run log (`lauf_beispiel.log`).  They were
-  missing in the clone, `tabelle_lesen`/`verlauf_lesen` returned empty values, and the table is now
+  missing in the clone, `read_table`/`read_history` returned empty values, and the table is now
   rebuilt from beso's own format (header like `beso_main.py`, rows with the same column widths).
   Both files are re-included with `!` exceptions - test inputs belong in the repository, outputs do
   not.
@@ -555,19 +555,44 @@ unnoticed.  `.github/workflows/tests.yml` now runs on every push and every pull 
 The scenario matrix remains manual work: it computes with the unchanged beso from GitHub and
 should not turn red on every change from upstream.
 
-## D43 - "Show diagrams" holt den offenen Tab wirklich nach vorn
+## D44 - The code is English throughout (comments, docstrings, identifiers)
 
-Der Fix aus #7 (`mdiArea().setActiveSubWindow()`) wirkt in FreeCAD 26.3 - belegt in
-`tests/panel_test.py`: ein fremder Diagramm-Tab wird geoeffnet und aktiviert, danach holt
-`anzeigen()` den Verlaufs-Tab zurueck (`vorher 'Fremder Tab', nachher 'Topology optimization -
-history'`).
+The user interface and the documentation were English, the code still had German comments,
+docstrings and identifiers.  This affected only readers of the source, never the behaviour, but a
+half translated code base is confusing - and it had already spread into the docs: decisions named
+functions that no longer existed under that name.
 
-Zusaetzlich wird das Fenster jetzt aus dem minimierten Zustand geholt (`showNormal()`, `raise_()`,
-`activateWindow()`), und die Funktion erkennt beide Formen: `Plot.figure()` liefert in 26.3 das
-Plot-Widget (dessen `parentWidget()` das `QMdiSubWindow` ist), in anderen Versionen direkt das
-SubWindow (belegt: `figure() -> Plot`, `parentWidget() -> QMdiSubWindow`, `mdiArea() -> QMdiArea`).
+Done in steps, each with the test suite as the gate:
 
-headless 156/156, Assistent 145/145.
+* comments and docstrings in all 20 touched files - proven by comparing the abstract syntax tree
+  with docstrings removed against the previous commit: identical for every file,
+* `uebersetze()` -> `translate()` (184 places),
+* identifiers in `core/` including the German dict keys that leave the module
+  (`fi_mean_ohne` -> `fi_mean_without_state0`, `vorhanden` -> `present`),
+* identifiers in `gui/` and the accesses in the tests (`knopf_lauf` -> `start_button`,
+  `_lauf_starten` -> `_start_run`, `Verlauf` -> `History`),
+* identifiers local to `tests/` (`pruefe` -> `check`), and the timing race that made one panel run
+  in three fail (the deferred `load()` in the constructor overwrote the status line - it now loads
+  only once).
+
+Measured after the last step: headless 156/156, assistant 146/146 three times in a row, window
+test 15/15.  Untouched on purpose: the bundled beso copy (upstream), the i18n dictionary (keys are
+the English texts, values German) and the German UI texts themselves.
+
+## D43 - "Show diagrams" really brings an open tab to the front
+
+The fix from #7 (`mdiArea().setActiveSubWindow()`) works in FreeCAD 26.3 - proven in
+`tests/panel_test.py`: a foreign chart tab is opened and activated, then `anzeigen()` brings the
+history tab back (`before 'Fremder Tab', after 'Topology optimization - history'`; the method is
+called `show()` since D44).
+
+On top of that the window is taken out of the minimized state now (`showNormal()`, `raise_()`,
+`activateWindow()`), and the function handles both forms: `Plot.figure()` returns the plot widget
+in 26.3 (its `parentWidget()` is the `QMdiSubWindow`), in other versions it returns the sub-window
+itself.  Measured in 26.3: `figure() -> Plot`, `parentWidget() -> QMdiSubWindow`,
+`mdiArea() -> QMdiArea`.
+
+headless 156/156, assistant 145/145 at the time of that step.
 
 ## D42 - FI_violated_tolerance is a property (default 1, as in beso)
 
@@ -602,7 +627,7 @@ fewer states (measured: `file030.vtk` 5 blocks versus `resulting_states.vtk` 38)
 `fileNNN.vtk` by modification time (not alphabetically - otherwise the highest number of an
 earlier run wins).  The hint under the button names the iteration in that case ("intermediate state of
 iteration 30 - ... the complete result is created at the end of the run."), and
-`_lauf_aktualisieren()` releases the button during the run as soon as the first intermediate stage is
+`_update_run()` releases the button during the run as soon as the first intermediate stage is
 there.
 
 Measured: `tests/panel_test.py` creates a `file030.vtk` and checks that the button is active,
@@ -614,7 +639,7 @@ The status ("Iteration 2 | Mass 57836, target 36319") sits next to the expandabl
 wrapped onto two lines, although there was room on the right.  The cause was the layout: before the label
 there was `addStretch(1)`, which gave the wrapping label only its (small) preferred width, and it wrapped.
 
-Now the label gets the rest of the line (`addWidget(self.lauf_status, 1)`), the stretch space
+Now the label gets the rest of the line (`addWidget(self.run_status, 1)`), the stretch space
 in front of it is dropped.  Measured in the panel test at 560 px panel width: label **447 px** at 193 px
 text width, height 25 px - thus **one** line (line height 16 px).  Assistant 135/135.
 
@@ -661,7 +686,7 @@ four** extra columns and anchored the match at the end of the row.  As soon as a
 allowable stress - thus exactly the case for which the Failure Index is intended - no row matched any
 more: diagrams and progress bar stayed empty, while the run itself continued flawlessly.
 
-`tabelle_lesen()` now reads the column positions from the header row of the table (beso writes exactly
+`read_table()` now reads the column positions from the header row of the table (beso writes exactly
 one token per column) and fetches the values via their name.  Every variant thus matches:
 3 columns without Failure Index, 4 with Failure Index and one domain, 6 or 8 with several domains.
 
@@ -693,8 +718,8 @@ does not require a stress (132).
 ## D31 - No more RecursionError when a run ends with an error
 
 After a run that ends with an error code, the user interface ran into an endless recursion:
-`_lauf_aktualisieren()` expanded the detail field in the error case (`knopf_detail.setChecked(True)`
-and `_detail_umschalten()`), and `_detail_umschalten()` calls `_lauf_aktualisieren()` again when the detail is visible -
+`_update_run()` expanded the detail field in the error case (`detail_button.setChecked(True)`
+and `_detail_umschalten()`), and `_detail_umschalten()` calls `_update_run()` again when the detail is visible -
 which reaches the error case again.  FreeCAD's console filled with
 `RecursionError: maximum recursion depth exceeded while calling a Python object`.
 
@@ -741,7 +766,7 @@ four **faces of a chamfer** instead of on a solid - from that FreeCAD writes no
 volume set, and CalculiX omits these elements without material.
 
 Both become apparent only late and with an incomprehensible message.  Therefore
-`elsets.pruefe_inp()` now checks the file in step 1, and `AssistantPanel._pruefe_inp()` shows the
+`elsets.check_inp()` now checks the file in step 1, and `AssistantPanel._check_inp()` shows the
 result in red above the domain list:
 
 * missing cards (`*MATERIAL` or `*STEP`) - "The input file is incomplete (`*STEP` is missing) -
@@ -759,7 +784,7 @@ a density, but **no** Young's modulus.  FreeCAD's writer then aborts with
 `KeyError: 'YoungsModulus'` and leaves exactly such a half-finished file behind (the panel showed
 only "The input file could not be generated: 'YoungsModulus'").  Therefore
 `material.fehlende_werte()` checks all materials of the analysis for `YoungsModulus` and `PoissonRatio`,
-and `AssistantPanel._pruefe_inp()` names them in the same red hint:
+and `AssistantPanel._check_inp()` names them in the same red hint:
 "These materials are missing values that CalculiX needs: <Material> (YoungsModulus) - please add
 them in the material editor."  Measured: headless 140 checks (material without Young's modulus,
 material without Poisson's ratio, complete material), assistant 129 (hint names material and value,

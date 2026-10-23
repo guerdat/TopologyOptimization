@@ -14,53 +14,53 @@ Call:  python tests/make_szenario_inp.py   (plain Python, no FreeCAD)
 """
 import os
 
-HIER = os.path.dirname(os.path.abspath(__file__))
-ZIEL = os.path.join(HIER, "szenarien")
+HERE = os.path.dirname(os.path.abspath(__file__))
+TARGET = os.path.join(HERE, "szenarien")
 
 
-def hexaeder_modell(kanten=20.0, teile=2, zwei_sets=False):
+def hexahedron_model(edge_length=20.0, parts=2, two_sets=False):
     """Cube made of hexahedra, fixed at the bottom, tension applied at the top.
 
     With ``zwei_sets`` two element sets with their own material each appear -
     the case "one domain without a permissible stress".
     """
-    schritt = kanten / teile
-    knoten = {}
-    zeilen = ["*NODE"]
-    nummer = 0
-    for k in range(teile + 1):
-        for j in range(teile + 1):
-            for i in range(teile + 1):
-                nummer += 1
-                knoten[(i, j, k)] = nummer
-                zeilen.append("%d, %.6f, %.6f, %.6f"
-                              % (nummer, i * schritt, j * schritt, k * schritt))
-    gesamt = teile ** 3
-    haelfte = gesamt // 2
-    erster = "SetA" if zwei_sets else "MaterialSolidSolid"
-    elemente = ["*ELEMENT, TYPE=C3D8, ELSET=%s" % erster]
-    nummer = 0
-    zweite_zeilen = []
-    for k in range(teile):
-        for j in range(teile):
-            for i in range(teile):
-                nummer += 1
-                e = [knoten[(i, j, k)], knoten[(i + 1, j, k)],
-                     knoten[(i + 1, j + 1, k)], knoten[(i, j + 1, k)],
-                     knoten[(i, j, k + 1)], knoten[(i + 1, j, k + 1)],
-                     knoten[(i + 1, j + 1, k + 1)], knoten[(i, j + 1, k + 1)]]
-                zeile = "%d, %s" % (nummer, ", ".join(str(x) for x in e))
-                if zwei_sets and nummer > haelfte:
-                    zweite_zeilen.append(zeile)
+    step = edge_length / parts
+    nodes = {}
+    lines = ["*NODE"]
+    number = 0
+    for k in range(parts + 1):
+        for j in range(parts + 1):
+            for i in range(parts + 1):
+                number += 1
+                nodes[(i, j, k)] = number
+                lines.append("%d, %.6f, %.6f, %.6f"
+                              % (number, i * step, j * step, k * step))
+    total = parts ** 3
+    half = total // 2
+    first_set = "SetA" if two_sets else "MaterialSolidSolid"
+    elements = ["*ELEMENT, TYPE=C3D8, ELSET=%s" % first_set]
+    number = 0
+    second_lines = []
+    for k in range(parts):
+        for j in range(parts):
+            for i in range(parts):
+                number += 1
+                e = [nodes[(i, j, k)], nodes[(i + 1, j, k)],
+                     nodes[(i + 1, j + 1, k)], nodes[(i, j + 1, k)],
+                     nodes[(i, j, k + 1)], nodes[(i + 1, j, k + 1)],
+                     nodes[(i + 1, j + 1, k + 1)], nodes[(i, j + 1, k + 1)]]
+                line = "%d, %s" % (number, ", ".join(str(x) for x in e))
+                if two_sets and number > half:
+                    second_lines.append(line)
                 else:
-                    elemente.append(zeile)
-    if zwei_sets:
-        elemente.append("*ELEMENT, TYPE=C3D8, ELSET=SetB")
-        elemente += zweite_zeilen
-    unten = [knoten[(i, j, 0)] for i in range(teile + 1) for j in range(teile + 1)]
-    oben = [knoten[(i, j, teile)] for i in range(teile + 1) for j in range(teile + 1)]
-    if zwei_sets:
-        kopf = [
+                    elements.append(line)
+    if two_sets:
+        elements.append("*ELEMENT, TYPE=C3D8, ELSET=SetB")
+        elements += second_lines
+    bottom = [nodes[(i, j, 0)] for i in range(parts + 1) for j in range(parts + 1)]
+    top = [nodes[(i, j, parts)] for i in range(parts + 1) for j in range(parts + 1)]
+    if two_sets:
+        header = [
             "*ELSET, ELSET=Eall",
             "SetA",
             "SetB",
@@ -78,7 +78,7 @@ def hexaeder_modell(kanten=20.0, teile=2, zwei_sets=False):
             "*SOLID SECTION, ELSET=SetB, MATERIAL=MaterialSolid001",
         ]
     else:
-        kopf = [
+        header = [
             "*ELSET, ELSET=Eall",
             "MaterialSolidSolid",
             "*MATERIAL, NAME=MaterialSolid",
@@ -87,13 +87,13 @@ def hexaeder_modell(kanten=20.0, teile=2, zwei_sets=False):
             "*DENSITY",
             "7.9e-09",
         ]
-    return "\n".join(zeilen + elemente + kopf + [
+    return "\n".join(lines + elements + header + [
         "*BOUNDARY",
-        "\n".join("%d, 1, 3, 0.0" % n for n in unten),
+        "\n".join("%d, 1, 3, 0.0" % n for n in bottom),
         "*STEP",
         "*STATIC",
         "*CLOAD",
-        "\n".join("%d, 3, -%.1f" % (n, 1000.0 / len(oben)) for n in oben),
+        "\n".join("%d, 3, -%.1f" % (n, 1000.0 / len(top)) for n in top),
         "*NODE FILE",
         "U",
         "*EL FILE",
@@ -103,24 +103,24 @@ def hexaeder_modell(kanten=20.0, teile=2, zwei_sets=False):
     ])
 
 
-def schalen_modell(dicke=5.0, mit_dicke=True):
+def shell_model(thickness=5.0, with_thickness=True):
     """Surface 20 x 10 mm made of two S3 strips, fixed on the left, tension at the
     bottom right."""
-    punkte = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0),
+    points = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0),
               (0.0, 10.0), (10.0, 10.0), (20.0, 10.0)]
-    zeilen = ["*NODE"]
-    for i, (x, y) in enumerate(punkte, start=1):
-        zeilen.append("%d, %.6f, %.6f, 0.0" % (i, x, y))
-    zeilen.append("*ELEMENT, TYPE=S3, ELSET=MaterialSolidElementGeometry2D")
-    zeilen.append("1, 1, 2, 5")
-    zeilen.append("2, 1, 5, 4")
-    zeilen.append("3, 2, 3, 6")
-    zeilen.append("4, 2, 6, 5")
-    zeilen += ["*ELSET, ELSET=Eall", "MaterialSolidElementGeometry2D"]
-    if mit_dicke:
-        zeilen += ["*SHELL SECTION, ELSET=MaterialSolidElementGeometry2D, "
-                   "MATERIAL=MaterialSolid, OFFSET=0", "%g" % dicke]
-    zeilen += [
+    lines = ["*NODE"]
+    for i, (x, y) in enumerate(points, start=1):
+        lines.append("%d, %.6f, %.6f, 0.0" % (i, x, y))
+    lines.append("*ELEMENT, TYPE=S3, ELSET=MaterialSolidElementGeometry2D")
+    lines.append("1, 1, 2, 5")
+    lines.append("2, 1, 5, 4")
+    lines.append("3, 2, 3, 6")
+    lines.append("4, 2, 6, 5")
+    lines += ["*ELSET, ELSET=Eall", "MaterialSolidElementGeometry2D"]
+    if with_thickness:
+        lines += ["*SHELL SECTION, ELSET=MaterialSolidElementGeometry2D, "
+                   "MATERIAL=MaterialSolid, OFFSET=0", "%g" % thickness]
+    lines += [
         "*MATERIAL, NAME=MaterialSolid",
         "*ELASTIC",
         "210000, 0.3",
@@ -141,24 +141,24 @@ def schalen_modell(dicke=5.0, mit_dicke=True):
         "*END STEP",
         "",
     ]
-    return "\n".join(zeilen)
+    return "\n".join(lines)
 
 
 def main():
-    if not os.path.isdir(ZIEL):
-        os.makedirs(ZIEL)
-    dateien = {
-        "modell_3d_hex.inp": hexaeder_modell(),
-        "modell_2sets.inp": hexaeder_modell(zwei_sets=True),
-        "modell_2d_schale.inp": schalen_modell(),
-        "modell_2d_ohne_dicke.inp": schalen_modell(mit_dicke=False),
+    if not os.path.isdir(TARGET):
+        os.makedirs(TARGET)
+    files = {
+        "modell_3d_hex.inp": hexahedron_model(),
+        "modell_2sets.inp": hexahedron_model(two_sets=True),
+        "modell_2d_schale.inp": shell_model(),
+        "modell_2d_ohne_dicke.inp": shell_model(with_thickness=False),
     }
-    for name, inhalt in dateien.items():
-        pfad = os.path.join(ZIEL, name)
-        with open(pfad, "w", encoding="utf8", newline="\n") as fh:
-            fh.write(inhalt)
-        print("%-28s %6d Zeilen" % (name, inhalt.count("\n")), flush=True)
-    print("Ordner:", ZIEL, flush=True)
+    for name, content in files.items():
+        path = os.path.join(TARGET, name)
+        with open(path, "w", encoding="utf8", newline="\n") as fh:
+            fh.write(content)
+        print("%-28s %6d Zeilen" % (name, content.count("\n")), flush=True)
+    print("Ordner:", TARGET, flush=True)
 
 
 main()

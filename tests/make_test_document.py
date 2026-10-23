@@ -15,14 +15,14 @@ import os
 import sys
 import traceback
 
-HIER = os.path.dirname(os.path.abspath(__file__))
-AUSGABE = os.path.join(HIER, "make_test_document_ausgabe.txt")
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUTPUT = os.path.join(HERE, "make_test_document_ausgabe.txt")
 
-zeilen = []
+lines = []
 
 
 def log(text):
-    zeilen.append(str(text))
+    lines.append(str(text))
 
 
 try:
@@ -36,17 +36,17 @@ try:
     except ImportError:
         pass
 
-    ziel = os.environ.get("TOPOOPT_TEST_DOKUMENT") or os.path.join(
+    target = os.environ.get("TOPOOPT_TEST_DOKUMENT") or os.path.join(
         os.environ.get("TEMP", "/tmp"), "TopoOpt_Test", "modell.FCStd")
-    os.makedirs(os.path.dirname(ziel), exist_ok=True)
+    os.makedirs(os.path.dirname(target), exist_ok=True)
 
     doc = App.newDocument("TopoOpt_Testmodell")
 
     # 1. the geometry: a beam 100 x 20 x 10 mm
-    kasten = doc.addObject("Part::Box", "Balken")
-    kasten.Length = 100.0
-    kasten.Width = 20.0
-    kasten.Height = 10.0
+    box = doc.addObject("Part::Box", "Balken")
+    box.Length = 100.0
+    box.Width = 20.0
+    box.Height = 10.0
     doc.recompute()
 
     # 2. material - assigned to the body, otherwise FreeCAD writes no
@@ -58,33 +58,33 @@ try:
         "PoissonRatio": "0.30",
         "Density": "7900 kg/m^3",
     }
-    material.References = [(kasten, "Solid1")]
+    material.References = [(box, "Solid1")]
 
     # 3. meshing (coarse so the tests are fast)
-    netz = ObjectsFem.makeMeshGmsh(doc, "FEMMeshGmsh")
-    netz.Shape = kasten
-    netz.CharacteristicLengthMax = 8.0
-    netz.CharacteristicLengthMin = 8.0
+    mesh = ObjectsFem.makeMeshGmsh(doc, "FEMMeshGmsh")
+    mesh.Shape = box
+    mesh.CharacteristicLengthMax = 8.0
+    mesh.CharacteristicLengthMin = 8.0
     doc.recompute()
 
     # 4. analysis with mesh, material and solver
-    analyse = ObjectsFem.makeAnalysis(doc, "Analysis")
+    analysis = ObjectsFem.makeAnalysis(doc, "Analysis")
     solver = ObjectsFem.makeSolverCalculiXCcxTools(doc, "SolverCalculiX")
-    analyse.addObject(material)
-    analyse.addObject(netz)
-    analyse.addObject(solver)
+    analysis.addObject(material)
+    analysis.addObject(mesh)
+    analysis.addObject(solver)
     doc.recompute()
 
     # 5. really create the mesh (gmsh runs as an external program)
     import femmesh.gmshtools as gmshtools
-    ergebnis = gmshtools.GmshTools(netz).create_mesh()
-    log("Netz erzeugt: %s" % ergebnis)
+    result = gmshtools.GmshTools(mesh).create_mesh()
+    log("Netz erzeugt: %s" % result)
     log("Knoten: %d, Volumenelemente: %d"
-        % (netz.FemMesh.NodeCount, netz.FemMesh.VolumeCount))
+        % (mesh.FemMesh.NodeCount, mesh.FemMesh.VolumeCount))
 
     doc.recompute()
-    doc.saveAs(ziel)
-    log("Dokument gespeichert: %s (%d Bytes)" % (ziel, os.path.getsize(ziel)))
+    doc.saveAs(target)
+    log("Dokument gespeichert: %s (%d Bytes)" % (target, os.path.getsize(target)))
     log("Objekte: %s" % ", ".join(sorted(o.Name for o in doc.Objects)))
 
     if FreeCADGui is not None:
@@ -93,9 +93,9 @@ try:
 except Exception:
     log("AUSNAHME:\n" + traceback.format_exc())
 
-with open(AUSGABE, "w", encoding="utf8") as f:
-    f.write("\n".join(zeilen) + "\n")
+with open(OUTPUT, "w", encoding="utf8") as f:
+    f.write("\n".join(lines) + "\n")
 
 if FreeCADGui is not None:
     sys.exit(0)
-print("\n".join(zeilen))
+print("\n".join(lines))
