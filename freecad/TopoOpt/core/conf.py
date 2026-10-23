@@ -98,6 +98,7 @@ def conf_text(obj, inp_pfad, domains, arbeit_ordner):
         "ratio_type = 'relative'",
         "iterations_limit = %r" % _limit(getattr(obj, "IterationsLimit", "auto")),
         "tolerance = %r" % float(getattr(obj, "Tolerance", 1e-3)),
+        "FI_violated_tolerance = %d" % int(getattr(obj, "FIViolatedTolerance", 1)),
         "save_iteration_results = %d" % int(getattr(obj, "SaveIterations", 10)),
         "save_resulting_format = %r" % str(getattr(obj, "ResultFormat", "inp vtk")),
         "",
