@@ -623,13 +623,23 @@ try:
     doc.recompute()
 
     # ohne Eingabedatei: der Lauf startet nicht
-    objekt, proband = _proband()
-    objekt.InpFile = ""
-    proband._lauf_starten()
-    pruefe(proband._lauf_prozess is None
-           and ("input file" in proband.status.text().lower()
-                or "Eingabedatei" in proband.status.text()),
-           "ohne Eingabedatei startet kein Lauf (%s)" % proband.status.text())
+    # find_inp sucht bewusst auch im FEM-Arbeitsordner und in fremden %TEMP%/fcfem_*-Ordnern;
+    # auf einer Maschine, die schon Laeufe gesehen hat, findet es dort eine Datei - der Test
+    # haette dann nie "keine Eingabedatei" (gemessen: 233 Temp-Ordner, Panel fand eine .inp).
+    # Deshalb wird die Suche fuer diesen Test abgeschaltet; geprueft wird die Panel-Logik.
+    from freecad.TopoOpt.core import fem as _fem
+    _find_inp_echt = _fem.find_inp
+    _fem.find_inp = lambda *a, **k: (None, "")
+    try:
+        objekt, proband = _proband()
+        objekt.InpFile = ""
+        proband._lauf_starten()
+        pruefe(proband._lauf_prozess is None
+               and ("input file" in proband.status.text().lower()
+                    or "Eingabedatei" in proband.status.text()),
+               "ohne Eingabedatei startet kein Lauf (%s)" % proband.status.text())
+    finally:
+        _fem.find_inp = _find_inp_echt
 
     # ohne Design-Raum: der Lauf startet nicht
     objekt, proband = _proband()
