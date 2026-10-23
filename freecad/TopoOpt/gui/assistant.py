@@ -17,7 +17,7 @@ from ..core import lauf as logdatei
 from ..core import material as material_modul
 from ..core import netz as netz_modul
 from ..core import radius as radius_modul
-from ..core.i18n import uebersetze
+from ..core.i18n import translate
 from ..core.params import (BASES, FILTER_TYPES, FORMATS, MASS_CHANGE, format_filters,
                            parse_filters)
 from ..features.topology_object import find_analysis, ensure_properties
@@ -191,7 +191,7 @@ class AssistantPanel:
         self._lauf_beginn = 0.0        # start time of the run
 
         self.form = QtWidgets.QWidget()
-        self.form.setWindowTitle(uebersetze("Topology Optimization"))
+        self.form.setWindowTitle(translate("Topology Optimization"))
         aussen = QtWidgets.QVBoxLayout(self.form)
         aussen.setContentsMargins(8, 8, 8, 8)
         aussen.setSpacing(6)
@@ -222,9 +222,9 @@ class AssistantPanel:
         aussen.addWidget(self.seiten, 1)
 
         nav = QtWidgets.QHBoxLayout()
-        self.knopf_schritt_zurueck = QtWidgets.QPushButton(uebersetze("< Back"))
+        self.knopf_schritt_zurueck = QtWidgets.QPushButton(translate("< Back"))
         self.knopf_schritt_zurueck.clicked.connect(self._schritt_zurueck)
-        self.knopf_schritt_weiter = QtWidgets.QPushButton(uebersetze("Next >"))
+        self.knopf_schritt_weiter = QtWidgets.QPushButton(translate("Next >"))
         self.knopf_schritt_weiter.clicked.connect(self._schritt_weiter)
         nav.addWidget(self.knopf_schritt_zurueck)
         nav.addStretch(1)
@@ -246,7 +246,7 @@ class AssistantPanel:
         self.seiten.setCurrentIndex(nummer - 1)
         teile = []
         for index, name in enumerate(SCHRITTE, start=1):
-            text = "%d %s" % (index, uebersetze(name))
+            text = "%d %s" % (index, translate(name))
             if index == nummer:
                 teile.append("<b>%s</b>" % text)
             else:
@@ -269,7 +269,7 @@ class AssistantPanel:
     def _seite_platzhalter(self):
         seite = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(seite)
-        label = _label_wrap(uebersetze("This step is not built yet."))
+        label = _label_wrap(translate("This step is not built yet."))
         layout.addWidget(label)
         layout.addStretch(1)
         return seite
@@ -295,16 +295,16 @@ class AssistantPanel:
         layout.setContentsMargins(0, 0, 0, 0)
 
         # --- target mass -------------------------------------------------
-        rahmen = QtWidgets.QGroupBox(uebersetze("Target mass"))
+        rahmen = QtWidgets.QGroupBox(translate("Target mass"))
         form = QtWidgets.QGridLayout(rahmen)
         self.slider_masse = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.slider_masse.setRange(MASSE_MIN, MASSE_MAX)
         self.slider_masse.setMinimumWidth(80)
-        self.slider_masse.setToolTip(uebersetze(TIP_MASSE))
+        self.slider_masse.setToolTip(translate(TIP_MASSE))
         self.feld_masse = QtWidgets.QSpinBox()
         self.feld_masse.setRange(MASSE_MIN, MASSE_MAX)
         self.feld_masse.setSuffix(" %")
-        self.feld_masse.setToolTip(uebersetze(TIP_MASSE))
+        self.feld_masse.setToolTip(translate(TIP_MASSE))
         self.slider_masse.valueChanged.connect(self._masse_geaendert)
         self.feld_masse.valueChanged.connect(self._masse_geaendert)
         form.addWidget(self.slider_masse, 0, 0)
@@ -312,43 +312,43 @@ class AssistantPanel:
         layout.addWidget(rahmen)
 
         # --- the optimization itself -------------------------------------
-        rahmen = QtWidgets.QGroupBox(uebersetze("Optimization"))
+        rahmen = QtWidgets.QGroupBox(translate("Optimization"))
         form = QtWidgets.QGridLayout(rahmen)
         zeile = 0
-        form.addWidget(_label_wrap(uebersetze("What is optimized")), zeile, 0)
+        form.addWidget(_label_wrap(translate("What is optimized")), zeile, 0)
         self.combo_basis = _combo_schmal(QtWidgets.QComboBox())
         for wert in BASES:
-            self.combo_basis.addItem(uebersetze(BASIS_LABELS.get(wert, wert)), wert)
+            self.combo_basis.addItem(translate(BASIS_LABELS.get(wert, wert)), wert)
         self.combo_basis.currentIndexChanged.connect(self._parameter_geaendert)
         form.addWidget(self.combo_basis, zeile, 1)
 
         zeile += 1
-        form.addWidget(_label_wrap(uebersetze("Maximum iterations")), zeile, 0)
+        form.addWidget(_label_wrap(translate("Maximum iterations")), zeile, 0)
         self.feld_iterationen = QtWidgets.QLineEdit()
-        self.feld_iterationen.setToolTip(uebersetze("'auto' lets beso estimate the number of "
+        self.feld_iterationen.setToolTip(translate("'auto' lets beso estimate the number of "
                                                     "iterations, a number stops after it."))
         self.feld_iterationen.editingFinished.connect(self._parameter_geaendert)
         form.addWidget(self.feld_iterationen, zeile, 1)
 
         zeile += 1
-        form.addWidget(_label_wrap(uebersetze("Stop tolerance")), zeile, 0)
+        form.addWidget(_label_wrap(translate("Stop tolerance")), zeile, 0)
         self.feld_toleranz = _ZahlFeld()
         self.feld_toleranz.setDecimals(6)
         self.feld_toleranz.setRange(0.000001, 1.0)
         self.feld_toleranz.setSingleStep(0.0005)
-        self.feld_toleranz.setToolTip(uebersetze("The optimization stops when the mean stress "
+        self.feld_toleranz.setToolTip(translate("The optimization stops when the mean stress "
                                                  "changes less than this value in the last "
                                                  "5 iterations (beso: 0.001)."))
         self.feld_toleranz.valueChanged.connect(self._parameter_geaendert)
         form.addWidget(self.feld_toleranz, zeile, 1)
 
         zeile += 1
-        form.addWidget(_label_wrap(uebersetze("FI tolerance")), zeile, 0)
+        form.addWidget(_label_wrap(translate("FI tolerance")), zeile, 0)
         self.feld_fi_toleranz = _ZahlFeld()
         self.feld_fi_toleranz.setDecimals(0)
         self.feld_fi_toleranz.setRange(1, 10000)
         self.feld_fi_toleranz.setSingleStep(1)
-        self.feld_fi_toleranz.setToolTip(uebersetze(
+        self.feld_fi_toleranz.setToolTip(translate(
             "With an allowable stress beso freezes the mass as soon as this many more "
             "elements than at the start exceed the limit - beso's default is 1, so a "
             "single outlier can stop the run early. Raise it if your mesh has sharp "
@@ -357,23 +357,23 @@ class AssistantPanel:
         form.addWidget(self.feld_fi_toleranz, zeile, 1)
 
         zeile += 1
-        form.addWidget(_label_wrap(uebersetze("Material change per iteration")), zeile, 0)
+        form.addWidget(_label_wrap(translate("Material change per iteration")), zeile, 0)
         self.combo_masse_aenderung = _combo_schmal(QtWidgets.QComboBox())
         for schluessel in MASS_CHANGE:
             self.combo_masse_aenderung.addItem(
-                uebersetze(MASS_CHANGE_LABELS.get(schluessel, schluessel)), schluessel)
-        self.combo_masse_aenderung.setToolTip(uebersetze("How much material beso adds or "
+                translate(MASS_CHANGE_LABELS.get(schluessel, schluessel)), schluessel)
+        self.combo_masse_aenderung.setToolTip(translate("How much material beso adds or "
                                                          "removes per iteration."))
         self.combo_masse_aenderung.currentIndexChanged.connect(self._parameter_geaendert)
         form.addWidget(self.combo_masse_aenderung, zeile, 1)
 
         zeile += 1
-        form.addWidget(_label_wrap(uebersetze("Processor cores")), zeile, 0)
+        form.addWidget(_label_wrap(translate("Processor cores")), zeile, 0)
         self.feld_kerne = QtWidgets.QSpinBox()
         self.feld_kerne.setRange(0, 128)
         # 0 shows as "all" - setSpecialValueText() works because the minimum is 0
-        self.feld_kerne.setSpecialValueText(uebersetze("all"))
-        self.feld_kerne.setToolTip(uebersetze("Cores for the solver; 'all' uses every core "
+        self.feld_kerne.setSpecialValueText(translate("all"))
+        self.feld_kerne.setToolTip(translate("Cores for the solver; 'all' uses every core "
                                               "of the computer."))
         self.feld_kerne.valueChanged.connect(self._parameter_geaendert)
         form.addWidget(self.feld_kerne, zeile, 1)
@@ -382,17 +382,17 @@ class AssistantPanel:
         layout.addWidget(self._filter_bereich())
 
         # --- result files ------------------------------------------------
-        rahmen = QtWidgets.QGroupBox(uebersetze("Result files"))
+        rahmen = QtWidgets.QGroupBox(translate("Result files"))
         form = QtWidgets.QGridLayout(rahmen)
-        form.addWidget(_label_wrap(uebersetze("Save every n-th iteration")), 0, 0)
+        form.addWidget(_label_wrap(translate("Save every n-th iteration")), 0, 0)
         self.feld_speichern = QtWidgets.QSpinBox()
         self.feld_speichern.setRange(0, 100)
-        self.feld_speichern.setToolTip(uebersetze("0 saves only the final result. Every saved "
+        self.feld_speichern.setToolTip(translate("0 saves only the final result. Every saved "
                                                   "iteration needs disk space (a fine mesh "
                                                   "can need 100 MB and more)."))
         self.feld_speichern.valueChanged.connect(self._parameter_geaendert)
         form.addWidget(self.feld_speichern, 0, 1)
-        form.addWidget(_label_wrap(uebersetze("Format of the result meshes")), 1, 0)
+        form.addWidget(_label_wrap(translate("Format of the result meshes")), 1, 0)
         self.combo_format = _combo_schmal(QtWidgets.QComboBox())
         for wert in FORMATS:
             self.combo_format.addItem(wert, wert)
@@ -408,7 +408,7 @@ class AssistantPanel:
         beso takes a list of filters and applies them one after the other
         (e.g. first "casting", then "simple"), so the number of rows is free.
         """
-        rahmen = QtWidgets.QGroupBox(uebersetze("Filter"))
+        rahmen = QtWidgets.QGroupBox(translate("Filter"))
         aussen = QtWidgets.QVBoxLayout(rahmen)
 
         self.filter_layout = QtWidgets.QVBoxLayout()
@@ -420,19 +420,19 @@ class AssistantPanel:
         knopf_zeile.addStretch(1)               # the button sits on the right
         self.knopf_filter_plus = QtWidgets.QToolButton()
         self.knopf_filter_plus.setText("+")
-        self.knopf_filter_plus.setToolTip(uebersetze("Add filter") + " - "
-                                          + uebersetze("beso applies the filters one after the "
+        self.knopf_filter_plus.setToolTip(translate("Add filter") + " - "
+                                          + translate("beso applies the filters one after the "
                                                        "other, for example first 'casting', then "
                                                        "'simple'."))
         self.knopf_filter_plus.clicked.connect(lambda: self._filter_hinzufuegen())
         knopf_zeile.addWidget(self.knopf_filter_plus)
         aussen.addLayout(knopf_zeile)
 
-        hinweis = _label_wrap(uebersetze("robust: smallest radius at which every element "
+        hinweis = _label_wrap(translate("robust: smallest radius at which every element "
                                          "still has a neighbour") + "\n"
-                              + uebersetze("automatic: 2 x mean element size (as in beso)")
+                              + translate("automatic: 2 x mean element size (as in beso)")
                               + "\n"
-                              + uebersetze("manual: your own value in millimetres"))
+                              + translate("manual: your own value in millimetres"))
         hinweis.setStyleSheet("color: %s;" % FARBE_GRAU)
         aussen.addWidget(hinweis)
         return rahmen
@@ -469,7 +469,7 @@ class AssistantPanel:
 
     def _nummeriere_filter(self):
         for nummer, zeile in enumerate(self.filter_zeilen, start=1):
-            zeile["label"].setText(uebersetze("Filter %d") % nummer)
+            zeile["label"].setText(translate("Filter %d") % nummer)
 
     def _filter_zeile(self):
         """The widgets of one filter row (not yet added to the layout)."""
@@ -484,15 +484,15 @@ class AssistantPanel:
 
         zeile["typ"] = _combo_schmal(QtWidgets.QComboBox(), 4)
         for wert, text in FILTER_OPTIONEN:
-            zeile["typ"].addItem(uebersetze(text), wert)
-        zeile["typ"].setToolTip(uebersetze(TIP_FILTER))
+            zeile["typ"].addItem(translate(text), wert)
+        zeile["typ"].setToolTip(translate(TIP_FILTER))
         zeile["typ"].currentIndexChanged.connect(self._filter_geaendert)
         layout.addWidget(zeile["typ"], 1)
 
         zeile["radius_modus"] = _combo_schmal(QtWidgets.QComboBox(), 4)
         for wert, text in RADIUS_MODI:
-            zeile["radius_modus"].addItem(uebersetze(text), wert)
-        zeile["radius_modus"].setToolTip(uebersetze(TIP_RADIUS))
+            zeile["radius_modus"].addItem(translate(text), wert)
+        zeile["radius_modus"].setToolTip(translate(TIP_RADIUS))
         zeile["radius_modus"].currentIndexChanged.connect(self._filter_geaendert)
         layout.addWidget(zeile["radius_modus"])
 
@@ -501,7 +501,7 @@ class AssistantPanel:
         zeile["radius_wert"].setDecimals(3)
         zeile["radius_wert"].setSuffix(" mm")
         zeile["radius_wert"].setValue(2.0)
-        zeile["radius_wert"].setToolTip(uebersetze("Radius in millimetres - a larger radius "
+        zeile["radius_wert"].setToolTip(translate("Radius in millimetres - a larger radius "
                                                    "gives thicker struts and fewer fine "
                                                    "details. The filter needs a radius in "
                                                    "which every element has a neighbour."))
@@ -520,21 +520,21 @@ class AssistantPanel:
         # the check takes a few seconds on fine meshes - so the user starts it
         zeile["pruefen"] = QtWidgets.QToolButton()
         zeile["pruefen"].setText("\u21bb")       # circular arrow
-        zeile["pruefen"].setToolTip(uebersetze("Check the robust filter radius now"))
+        zeile["pruefen"].setToolTip(translate("Check the robust filter radius now"))
         zeile["pruefen"].clicked.connect(lambda _checked=False, z=zeile: self._pruefe_radius(z))
         layout.addWidget(zeile["pruefen"])
 
         zeile["richtung"] = QtWidgets.QLineEdit("(0, 0, 1)")
         zeile["richtung"].setMinimumWidth(50)
         zeile["richtung"].setVisible(False)     # only the casting filter needs it
-        zeile["richtung"].setToolTip(uebersetze("Only for the casting filter: the direction in "
+        zeile["richtung"].setToolTip(translate("Only for the casting filter: the direction in "
                                                 "which the part has to be demouldable."))
         zeile["richtung"].editingFinished.connect(self._filter_geaendert)
         layout.addWidget(zeile["richtung"])
 
         zeile["minus"] = QtWidgets.QToolButton()
         zeile["minus"].setText("\u2212")        # minus sign
-        zeile["minus"].setToolTip(uebersetze("Remove this filter"))
+        zeile["minus"].setToolTip(translate("Remove this filter"))
         zeile["minus"].clicked.connect(lambda _checked=False, z=zeile: self._filter_entfernen(z))
         layout.addWidget(zeile["minus"])
         return zeile
@@ -559,11 +559,11 @@ class AssistantPanel:
                 elif self.obj.RobusterRadius > 0:
                     # no calculation when the dialog opens - show the remembered value
                     self._radius_text(zeile, "%.3f mm" % self.obj.RobusterRadius, FARBE_GRAU,
-                                      uebersetze("%.3f mm (saved value from the last check)")
+                                      translate("%.3f mm (saved value from the last check)")
                                       % self.obj.RobusterRadius)
                 else:
-                    self._radius_text(zeile, uebersetze("calculate"), FARBE_AUFTRAG,
-                                      uebersetze("Check the robust filter radius now"))
+                    self._radius_text(zeile, translate("calculate"), FARBE_AUFTRAG,
+                                      translate("Check the robust filter radius now"))
             else:
                 zeile["pruefen"].setVisible(False)
                 self._radius_text(zeile, "", "")
@@ -603,7 +603,7 @@ class AssistantPanel:
         """
         self._robust_daten = None
         self._robust_ergebnis = None
-        self._setze_status(uebersetze("Checking the robust filter radius with beso ... "
+        self._setze_status(translate("Checking the robust filter radius with beso ... "
                                       "this can take a few seconds."), "info")
         QtWidgets.QApplication.processEvents()
         try:
@@ -611,18 +611,18 @@ class AssistantPanel:
         except Exception as exc:
             self._robust_ergebnis = {}
             App.Console.PrintError("TopoOpt: %s\n" % exc)
-            self._setze_status(uebersetze("The robust radius could not be calculated: %s")
+            self._setze_status(translate("The robust radius could not be calculated: %s")
                                % exc, "fehler")
         if self._robust_ergebnis:
             self.obj.RobusterRadius = self._robust_ergebnis["radius"]
             self.obj.MittlereGroesse = self._robust_ergebnis["mittel"]
-            self._setze_status(uebersetze("Robust filter radius: %.3f mm = %.1f x mean "
+            self._setze_status(translate("Robust filter radius: %.3f mm = %.1f x mean "
                                           "element size, %d element(s) without a neighbour.")
                                % (self._robust_ergebnis["radius"],
                                   self._robust_ergebnis["faktor"],
                                   self._robust_ergebnis["ohne_nachbarn"]), "ok")
         else:
-            self._setze_status(uebersetze("The robust radius needs an input file and a "
+            self._setze_status(translate("The robust radius needs an input file and a "
                                           "design space - check step 1."), "fehler")
         for andere in self.filter_zeilen:
             if andere["radius_modus"].currentData() == "robust":
@@ -632,11 +632,11 @@ class AssistantPanel:
     def _radius_anzeige(self, zeile):
         """Write the result of the radius check to the filter row (short text + tooltip)."""
         if not self._robust_ergebnis:
-            self._radius_text(zeile, uebersetze("calculate"), FARBE_AUFTRAG,
-                              uebersetze("Check the robust filter radius now"))
+            self._radius_text(zeile, translate("calculate"), FARBE_AUFTRAG,
+                              translate("Check the robust filter radius now"))
             return
         self._radius_text(zeile, "%.3f mm" % self._robust_ergebnis["radius"], FARBE_OK,
-                          uebersetze("%.3f mm = %.1f x mean size, %d without neighbour")
+                          translate("%.3f mm = %.1f x mean size, %d without neighbour")
                           % (self._robust_ergebnis["radius"],
                              self._robust_ergebnis["faktor"],
                              self._robust_ergebnis["ohne_nachbarn"]))
@@ -682,19 +682,19 @@ class AssistantPanel:
         layout.setContentsMargins(0, 0, 0, 0)
 
         # --- computing: start, cancel, progress, details ---
-        rahmen_lauf = QtWidgets.QGroupBox(uebersetze("Calculate"))
+        rahmen_lauf = QtWidgets.QGroupBox(translate("Calculate"))
         lauf = QtWidgets.QVBoxLayout(rahmen_lauf)
 
         zeile = QtWidgets.QHBoxLayout()
-        self.knopf_lauf = QtWidgets.QPushButton(uebersetze("Start optimization"))
-        self.knopf_lauf.setToolTip(uebersetze("Writes the beso configuration and starts beso "
+        self.knopf_lauf = QtWidgets.QPushButton(translate("Start optimization"))
+        self.knopf_lauf.setToolTip(translate("Writes the beso configuration and starts beso "
                                              "as its own process - FreeCAD stays usable."))
         self.knopf_lauf.clicked.connect(self._lauf_knopf)
         zeile.addWidget(self.knopf_lauf)
         zeile.addStretch(1)
         # the runtime sits right of the button - it belongs to the run, not to the panel
         self.lauf_zeit = QtWidgets.QLabel("")
-        self.lauf_zeit.setToolTip(uebersetze("How long the solver has been running"))
+        self.lauf_zeit.setToolTip(translate("How long the solver has been running"))
         self.lauf_zeit.setStyleSheet("color: gray;")
         zeile.addWidget(self.lauf_zeit)
         lauf.addLayout(zeile)
@@ -703,7 +703,7 @@ class AssistantPanel:
         self.balken = QtWidgets.QProgressBar()
         self.balken.setRange(0, 100)
         self.balken.setValue(0)
-        self.balken.setToolTip(uebersetze("0 % = the whole part, 100 % = the target mass"))
+        self.balken.setToolTip(translate("0 % = the whole part, 100 % = the target mass"))
         lauf.addWidget(self.balken)
 
         # collapsible field for the last log lines ("Detail") - belongs to computing.
@@ -711,7 +711,7 @@ class AssistantPanel:
         # as long as nothing runs (otherwise an empty line would remain).
         kopf_zeile = QtWidgets.QHBoxLayout()
         self.knopf_detail = QtWidgets.QToolButton()
-        self.knopf_detail.setText(uebersetze("Details"))
+        self.knopf_detail.setText(translate("Details"))
         self.knopf_detail.setCheckable(True)
         self.knopf_detail.setArrowType(QtCore.Qt.RightArrow)
         self.knopf_detail.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
@@ -728,13 +728,13 @@ class AssistantPanel:
         self.detail.setReadOnly(True)
         self.detail.setVisible(False)
         self.detail.setMaximumHeight(150)
-        self.detail.setToolTip(uebersetze("The last lines of the run - 'Whole log' opens "
+        self.detail.setToolTip(translate("The last lines of the run - 'Whole log' opens "
                                           "the complete file."))
         lauf.addWidget(self.detail)
         layout.addWidget(rahmen_lauf)
 
         # --- the results: mesh and charts ---
-        rahmen_erg = QtWidgets.QGroupBox(uebersetze("Results"))
+        rahmen_erg = QtWidgets.QGroupBox(translate("Results"))
         erg = QtWidgets.QVBoxLayout(rahmen_erg)
 
         # the four buttons form a 2x2 grid:
@@ -742,23 +742,23 @@ class AssistantPanel:
         #   full log         | open working directory
         raster = QtWidgets.QGridLayout()
         raster.setSpacing(6)
-        self.knopf_netz = QtWidgets.QPushButton(uebersetze("Load result network"))
-        self.knopf_netz.setToolTip(uebersetze("Loads the network of the last iteration "
+        self.knopf_netz = QtWidgets.QPushButton(translate("Load result network"))
+        self.knopf_netz.setToolTip(translate("Loads the network of the last iteration "
                                              "(_state1.inp) as a real FEM mesh into the "
                                              "document - that is the result to work with"))
         self.knopf_netz.clicked.connect(self._ergebnisnetz_laden)
         raster.addWidget(self.knopf_netz, 0, 0)
-        self.knopf_diagramme = QtWidgets.QPushButton(uebersetze("Show diagrams"))
-        self.knopf_diagramme.setToolTip(uebersetze("Opens the window with the four charts "
+        self.knopf_diagramme = QtWidgets.QPushButton(translate("Show diagrams"))
+        self.knopf_diagramme.setToolTip(translate("Opens the window with the four charts "
                                                   "(mass, stress, overloaded elements, energy)"))
         self.knopf_diagramme.clicked.connect(self._verlauf_anzeigen)
         raster.addWidget(self.knopf_diagramme, 0, 1)
-        self.knopf_log = QtWidgets.QPushButton(uebersetze("Whole log"))
-        self.knopf_log.setToolTip(uebersetze("Opens the log file of the run"))
+        self.knopf_log = QtWidgets.QPushButton(translate("Whole log"))
+        self.knopf_log.setToolTip(translate("Opens the log file of the run"))
         self.knopf_log.clicked.connect(self._log_oeffnen)
         raster.addWidget(self.knopf_log, 1, 0)
-        self.knopf_ordner_erg = QtWidgets.QPushButton(uebersetze("Open working directory"))
-        self.knopf_ordner_erg.setToolTip(uebersetze("Opens the working directory with all files"))
+        self.knopf_ordner_erg = QtWidgets.QPushButton(translate("Open working directory"))
+        self.knopf_ordner_erg.setToolTip(translate("Opens the working directory with all files"))
         self.knopf_ordner_erg.clicked.connect(self._ordner_oeffnen)
         raster.addWidget(self.knopf_ordner_erg, 1, 1)
         raster.setColumnStretch(0, 1)
@@ -766,8 +766,8 @@ class AssistantPanel:
         erg.addLayout(raster)
 
         # "Iterationen anzeigen" (VTK player) belongs to the slider below
-        self.knopf_ergebnis = QtWidgets.QPushButton(uebersetze("Show iterations"))
-        self.knopf_ergebnis.setToolTip(uebersetze("Reads resulting_states.vtk and shows the "
+        self.knopf_ergebnis = QtWidgets.QPushButton(translate("Show iterations"))
+        self.knopf_ergebnis.setToolTip(translate("Reads resulting_states.vtk and shows the "
                                                  "material that is left in the part "
                                                  "(the film of the run)"))
         self.knopf_ergebnis.clicked.connect(self._ergebnis_knopf)
@@ -776,21 +776,21 @@ class AssistantPanel:
         self.ergebnis_slider.setMinimum(1)
         self.ergebnis_slider.setMaximum(1)
         self.ergebnis_slider.setMinimumWidth(40)
-        self.ergebnis_slider.setToolTip(uebersetze("Iteration to show"))
+        self.ergebnis_slider.setToolTip(translate("Iteration to show"))
         self.ergebnis_slider.valueChanged.connect(self._ergebnis_zeigen)
 
         zeile = QtWidgets.QHBoxLayout()
         zeile.addWidget(self.knopf_ergebnis)
         zeile.addStretch(1)
         self.knopf_zurueck = QtWidgets.QPushButton("\u25c0")
-        self.knopf_zurueck.setToolTip(uebersetze("One iteration back"))
+        self.knopf_zurueck.setToolTip(translate("One iteration back"))
         self.knopf_zurueck.clicked.connect(lambda: self._ergebnis_schritt(-1))
         self.knopf_vor = QtWidgets.QPushButton("\u25b6")
-        self.knopf_vor.setToolTip(uebersetze("One iteration forward"))
+        self.knopf_vor.setToolTip(translate("One iteration forward"))
         self.knopf_vor.clicked.connect(lambda: self._ergebnis_schritt(1))
-        self.knopf_abspielen = QtWidgets.QPushButton(uebersetze("Play"))
+        self.knopf_abspielen = QtWidgets.QPushButton(translate("Play"))
         self.knopf_abspielen.setCheckable(True)
-        self.knopf_abspielen.setToolTip(uebersetze("Show one iteration after the other"))
+        self.knopf_abspielen.setToolTip(translate("Show one iteration after the other"))
         self.knopf_abspielen.clicked.connect(self._ergebnis_abspielen)
         for knopf in (self.knopf_zurueck, self.knopf_vor, self.knopf_abspielen):
             # FreeCAD's style gives every button a minimum width of about 106 px -
@@ -800,9 +800,9 @@ class AssistantPanel:
             zeile.addWidget(knopf)
         # the playback speed belongs to the control buttons
         self.cmb_takt = QtWidgets.QComboBox()
-        self.cmb_takt.addItems([uebersetze("0.5 s"), uebersetze("1 s"),
-                                uebersetze("2 s"), uebersetze("3 s")])
-        self.cmb_takt.setToolTip(uebersetze("Pause between two pictures of the film"))
+        self.cmb_takt.addItems([translate("0.5 s"), translate("1 s"),
+                                translate("2 s"), translate("3 s")])
+        self.cmb_takt.setToolTip(translate("Pause between two pictures of the film"))
         self.cmb_takt.setStyleSheet("min-width: 0px;")
         self.cmb_takt.currentIndexChanged.connect(self._takt_geaendert)
         zeile.addWidget(self.cmb_takt)
@@ -832,7 +832,7 @@ class AssistantPanel:
         """Open the window with the four charts (or bring it to the front)."""
         fenster = self.verlauf.anzeigen()
         if fenster is None:
-            self._setze_status(uebersetze("The plot module of FreeCAD is not available - "
+            self._setze_status(translate("The plot module of FreeCAD is not available - "
                                           "the charts need 'Plot' in FreeCAD's module folder."),
                                "fehler")
         return fenster
@@ -877,18 +877,18 @@ class AssistantPanel:
         self.knopf_log.setEnabled(bool(self._log_pfad()))
         self.knopf_ordner_erg.setEnabled(bool(getattr(self.obj, "WorkingDir", "")))
         if not da:
-            self.ergebnis_info.setText(uebersetze("No result file yet - it is written when "
+            self.ergebnis_info.setText(translate("No result file yet - it is written when "
                                                  "the run is finished."))
             return
         if self.spieler is None and not self.ergebnis_info.text():
             if self._ist_endstand(pfad):
-                self.ergebnis_info.setText(uebersetze("resulting_states.vtk is there - "
+                self.ergebnis_info.setText(translate("resulting_states.vtk is there - "
                                                      "'Show iterations' reads it."))
             else:
                 # intermediate state: during the run beso writes one file per saved
                 # iteration with a part of the states
                 self.ergebnis_info.setText(
-                    uebersetze("Interim result of iteration %d - 'Show iterations' reads it. "
+                    translate("Interim result of iteration %d - 'Show iterations' reads it. "
                                "The complete result is written when the run is finished.")
                     % self._ergebnis_iteration(pfad))
 
@@ -901,18 +901,18 @@ class AssistantPanel:
         ordner = getattr(self.obj, "WorkingDir", "")
         datei = netz_modul.neueste_state1(ordner)
         if not datei:
-            self.ergebnis_info.setText(uebersetze("No state file (_state1.inp) in the working "
+            self.ergebnis_info.setText(translate("No state file (_state1.inp) in the working "
                                                  "directory yet."))
             return ""
         try:
             netz_modul.laden(datei, self.obj.Document)
         except Exception as exc:
-            self.ergebnis_info.setText(uebersetze("The result network could not be loaded: %s")
+            self.ergebnis_info.setText(translate("The result network could not be loaded: %s")
                                        % exc)
             return ""
-        self.ergebnis_info.setText(uebersetze("Result network loaded: %s")
+        self.ergebnis_info.setText(translate("Result network loaded: %s")
                                    % os.path.basename(datei))
-        App.Console.PrintMessage(uebersetze("TopoOpt: result network loaded from %s") % datei)
+        App.Console.PrintMessage(translate("TopoOpt: result network loaded from %s") % datei)
         return datei
 
     def _ergebnis_knopf(self):
@@ -927,16 +927,16 @@ class AssistantPanel:
         """Read resulting_states.vtk and show the last iteration."""
         pfad = self._ergebnis_pfad()
         if not pfad or not os.path.isfile(pfad):
-            self.ergebnis_info.setText(uebersetze("No resulting_states.vtk in the working "
+            self.ergebnis_info.setText(translate("No resulting_states.vtk in the working "
                                                  "directory yet."))
             return None
         if self.spieler is None:
             from .vtk_anzeige import Spieler
             try:
                 self.spieler = Spieler.laden(pfad, self.obj.Document,
-                                             label=uebersetze("TopoOpt iteration"))
+                                             label=translate("TopoOpt iteration"))
             except Exception as exc:
-                self.ergebnis_info.setText(uebersetze("The result file could not be read: %s")
+                self.ergebnis_info.setText(translate("The result file could not be read: %s")
                                            % exc)
                 return None
             self.ergebnis_slider.setRange(1, self.spieler.anzahl)
@@ -954,7 +954,7 @@ class AssistantPanel:
             self.ergebnis_slider.setValue(daten["nummer"])
             self.ergebnis_slider.blockSignals(False)
         self.ergebnis_info.setText(
-            uebersetze("Iteration %d of %d | %s of %s elements left (%.1f %%)")
+            translate("Iteration %d of %d | %s of %s elements left (%.1f %%)")
             % (daten["nummer"], daten["anzahl"],
                "{:,}".format(daten["zellen"]).replace(",", "."),
                "{:,}".format(daten["gesamt"]).replace(",", "."), daten["prozent"]))
@@ -990,12 +990,12 @@ class AssistantPanel:
             if self.ergebnis_slider.value() >= self.spieler.anzahl:
                 self.ergebnis_slider.setValue(1)      # from the start
             self.knopf_abspielen.setChecked(True)
-            self.knopf_abspielen.setText(uebersetze("Stop"))
+            self.knopf_abspielen.setText(translate("Stop"))
             self.ergebnis_timer.start()
         else:
             self.ergebnis_timer.stop()
             self.knopf_abspielen.setChecked(False)
-            self.knopf_abspielen.setText(uebersetze("Play"))
+            self.knopf_abspielen.setText(translate("Play"))
 
     def _log_pfad(self):
         """Our log file - taken from the run or derived from the input file."""
@@ -1012,7 +1012,7 @@ class AssistantPanel:
         """Open the complete log in the default program."""
         pfad = self._log_pfad()
         if not pfad:
-            self.ergebnis_info.setText(uebersetze("There is no log file yet."))
+            self.ergebnis_info.setText(translate("There is no log file yet."))
             return
         try:
             if os.name == "nt":
@@ -1021,7 +1021,7 @@ class AssistantPanel:
             elif not QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(pfad)):
                 raise RuntimeError(pfad)
         except Exception as exc:
-            self.ergebnis_info.setText(uebersetze("The log file could not be opened: %s") % exc)
+            self.ergebnis_info.setText(translate("The log file could not be opened: %s") % exc)
 
     def _detail_umschalten(self):
         sichtbar = self.knopf_detail.isChecked()
@@ -1045,12 +1045,12 @@ class AssistantPanel:
             # show the step first, then the message: switching to step 1 writes the
             # .inp info into the same line and would otherwise delete it
             self._zeige_schritt(1)
-            self._setze_status(uebersetze("There is no input file yet - see step 1."), "fehler")
+            self._setze_status(translate("There is no input file yet - see step 1."), "fehler")
             return
         domains = dict(self.domains)
         if not [name for name, rolle in domains.items() if rolle == dom.DESIGN]:
             self._zeige_schritt(1)
-            self._setze_status(uebersetze("No design space is marked - see step 1."), "fehler")
+            self._setze_status(translate("No design space is marked - see step 1."), "fehler")
             return
         try:
             prozess, log, conf = conf_modul.starte(self.obj, self.obj.InpFile, domains,
@@ -1058,8 +1058,8 @@ class AssistantPanel:
                                                    os.path.dirname(self.obj.InpFile))
         except Exception as exc:
             # translate the error message too - it comes from the core
-            self._setze_status(uebersetze("The run could not be started: %s")
-                               % uebersetze(str(exc)), "fehler")
+            self._setze_status(translate("The run could not be started: %s")
+                               % translate(str(exc)), "fehler")
             return
         self._lauf_prozess = prozess
         self._lauf_log = log
@@ -1074,9 +1074,9 @@ class AssistantPanel:
         self.spieler = None                    # a new run has new results
         self.ergebnis_slider.setRange(1, 1)
         self._ergebnisse_aktualisieren()
-        self.knopf_lauf.setText(uebersetze("Cancel"))
-        self.knopf_lauf.setToolTip(uebersetze("Stop the run (CalculiX is stopped as well)"))
-        self._setze_status(uebersetze("Run started (%s) ...") % os.path.basename(conf), "info")
+        self.knopf_lauf.setText(translate("Cancel"))
+        self.knopf_lauf.setToolTip(translate("Stop the run (CalculiX is stopped as well)"))
+        self._setze_status(translate("Run started (%s) ...") % os.path.basename(conf), "info")
         self._verlauf_anzeigen()      # charts always open on start
         self.lauf_timer.start()
         self._lauf_aktualisieren()
@@ -1094,7 +1094,7 @@ class AssistantPanel:
                 prozess.terminate()
         except Exception as exc:
             App.Console.PrintWarning("TopoOpt: %s\n" % exc)
-        self._setze_status(uebersetze("Run cancelled."), "auftrag")
+        self._setze_status(translate("Run cancelled."), "auftrag")
         self._lauf_aktualisieren()
 
     def _lauf_aktualisieren(self):
@@ -1112,14 +1112,14 @@ class AssistantPanel:
                                                  getattr(self.obj, "MassGoalRatio", None))))
         teile = []
         if daten["masse"] is not None:
-            teile.append(uebersetze("Iteration %d") % daten["iteration"])
+            teile.append(translate("Iteration %d") % daten["iteration"])
             if daten["ziel"]:
-                teile.append(uebersetze("mass %.0f, target %.0f")
+                teile.append(translate("mass %.0f, target %.0f")
                              % (daten["masse"], daten["ziel"]))
             else:
-                teile.append(uebersetze("mass %.0f") % daten["masse"])
+                teile.append(translate("mass %.0f") % daten["masse"])
         elif laeuft:
-            teile.append(uebersetze("CalculiX is running ..."))
+            teile.append(translate("CalculiX is running ..."))
         if self._lauf_beginn:
             sekunden = int(time.time() - self._lauf_beginn)
             self.lauf_zeit.setText("%d:%02d min" % (sekunden // 60, sekunden % 60))
@@ -1142,18 +1142,18 @@ class AssistantPanel:
             self.verlauf.laeuft = False
             self.verlauf.schliessen()
             self.verlauf.zeichne()
-            self.knopf_lauf.setText(uebersetze("Start optimization"))
-            self.knopf_lauf.setToolTip(uebersetze("Writes the beso configuration and starts beso "
+            self.knopf_lauf.setText(translate("Start optimization"))
+            self.knopf_lauf.setToolTip(translate("Writes the beso configuration and starts beso "
                                                  "as its own process - FreeCAD stays usable."))
             code = self._lauf_prozess.returncode if self._lauf_prozess else None
             fertig = logdatei.verlauf_lesen(self._lauf_log)["fertig"]
             if code == 0 and fertig:
-                self._setze_status(uebersetze("Optimization finished after %d iteration(s).")
+                self._setze_status(translate("Optimization finished after %d iteration(s).")
                                    % daten["iteration"], "ok")
                 self._ergebnisse_aktualisieren()
                 self._ergebnis_anzeigen()          # show the finished mesh right away
             else:
-                self._setze_status(uebersetze("The run ended (code %s) - open the details.")
+                self._setze_status(translate("The run ended (code %s) - open the details.")
                                    % code, "fehler")
                 # expand and fill the text ONCE: a call of _detail_umschalten() would from
                 # there call _lauf_aktualisieren() again and circle endlessly on an error
@@ -1174,17 +1174,17 @@ class AssistantPanel:
         leiste.setValue(leiste.maximum())
 
     def _inp_bereich(self):
-        rahmen = QtWidgets.QGroupBox(uebersetze("CalculiX input file (.inp)"))
+        rahmen = QtWidgets.QGroupBox(translate("CalculiX input file (.inp)"))
         layout = QtWidgets.QGridLayout(rahmen)
 
         # row 0: the path and the button that opens the folder in the file manager
         self.pfad_feld = QtWidgets.QLineEdit()
         self.pfad_feld.setReadOnly(True)
         self.pfad_feld.setMinimumWidth(100)
-        self.pfad_feld.setToolTip(uebersetze("The optimizer writes its iteration files "
+        self.pfad_feld.setToolTip(translate("The optimizer writes its iteration files "
                                               "next to this file."))
         layout.addWidget(self.pfad_feld, 0, 0)
-        self.knopf_ordner = QtWidgets.QPushButton(uebersetze("Open working directory"))
+        self.knopf_ordner = QtWidgets.QPushButton(translate("Open working directory"))
         self.knopf_ordner.clicked.connect(self._ordner_oeffnen)
         self.knopf_ordner.setEnabled(False)   # enabled as soon as the directory is known
         layout.addWidget(self.knopf_ordner, 0, 1)
@@ -1195,8 +1195,8 @@ class AssistantPanel:
         layout.addWidget(self.info, 1, 0, 1, 2)
 
         # row 2: button on the left, hint on the right
-        self.knopf_inp = QtWidgets.QPushButton(uebersetze("Write input file (.inp)"))
-        self.knopf_inp.setToolTip(uebersetze(TIP_INP))
+        self.knopf_inp = QtWidgets.QPushButton(translate("Write input file (.inp)"))
+        self.knopf_inp.setToolTip(translate(TIP_INP))
         self.knopf_inp.clicked.connect(self._inp_erzeugen)
         layout.addWidget(self.knopf_inp, 2, 0)
 
@@ -1228,17 +1228,17 @@ class AssistantPanel:
         ergebnis = elset_reader.pruefe_inp(getattr(self.obj, "InpFile", ""), sorted(self.elsets))
         teile = []
         if ergebnis["fehlende_karten"]:
-            teile.append(uebersetze("The input file is incomplete (%s missing) - write it again.")
+            teile.append(translate("The input file is incomplete (%s missing) - write it again.")
                          % ", ".join(ergebnis["fehlende_karten"]))
         if ergebnis["ohne_material"]:
-            teile.append(uebersetze("CalculiX has no material for these element sets (no section "
+            teile.append(translate("CalculiX has no material for these element sets (no section "
                                     "card): %s - their elements are left out of the calculation.")
                          % ", ".join(ergebnis["ohne_material"]))
         # material without a Young's modulus: FreeCAD aborts while writing and leaves
         # a half-finished .inp behind - this has to be noticed here, not as a KeyError
         fehlend = material_modul.fehlende_werte(material_modul.materialien_finden(self.analyse))
         if fehlend:
-            teile.append(uebersetze("These materials are missing values CalculiX needs: %s - "
+            teile.append(translate("These materials are missing values CalculiX needs: %s - "
                                     "complete them in the material editor.")
                          % ", ".join("%s (%s)" % (name, ", ".join(werte))
                                      for name, werte in sorted(fehlend.items())))
@@ -1246,12 +1246,12 @@ class AssistantPanel:
         self.hinweis_inp.setVisible(bool(teile))
 
     def _domain_tabelle(self):
-        rahmen = QtWidgets.QGroupBox(uebersetze("Domains - roles of the elements"))
+        rahmen = QtWidgets.QGroupBox(translate("Domains - roles of the elements"))
         layout = QtWidgets.QVBoxLayout(rahmen)
         self.tabelle = QtWidgets.QTableWidget(0, 4)
-        self.tabelle.setHorizontalHeaderLabels([uebersetze("Element set"), uebersetze("Role"),
-                                                uebersetze("Elements"),
-                                                uebersetze("σ (MPa)")])
+        self.tabelle.setHorizontalHeaderLabels([translate("Element set"), translate("Role"),
+                                                translate("Elements"),
+                                                translate("σ (MPa)")])
         self.tabelle.verticalHeader().setVisible(False)
         self.tabelle.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         kopf = self.tabelle.horizontalHeader()
@@ -1291,21 +1291,21 @@ class AssistantPanel:
             # criterion - as soon as an allowable stress is set anywhere, all of them
             # need one.  That is a reason to abort, hence red.
             self.hinweis_stress.setText(
-                uebersetze("The failure index needs an allowable stress in EVERY domain - "
+                translate("The failure index needs an allowable stress in EVERY domain - "
                            "still missing in: %s. The run stops without it.")
                 % ", ".join(ohne))
             self.hinweis_stress.setStyleSheet("color: %s;" % FARBE_FEHLER)
             self.hinweis_stress.setVisible(True)
             return
         self.hinweis_stress.setStyleSheet("color: %s;" % FARBE_HINWEIS)
-        text = uebersetze("Without an allowable stress (sigma) no failure index is computed.")
+        text = translate("Without an allowable stress (sigma) no failure index is computed.")
         moeglich = getattr(self, "stress_moeglich", {}) or {}
         werte = ["%s = %g MPa" % (name, moeglich[name]) for name in ohne if name in moeglich]
         if werte:
-            text += " " + uebersetze("From the material: %s - enter it in the sigma column "
+            text += " " + translate("From the material: %s - enter it in the sigma column "
                                      "if you want the utilisation.") % ", ".join(werte)
         elif ohne:
-            text += " " + uebersetze("No yield strength is stored in the material - enter the "
+            text += " " + translate("No yield strength is stored in the material - enter the "
                                      "value you want to allow.")
         self.hinweis_stress.setText(text)
         self.hinweis_stress.setVisible(True)
@@ -1317,16 +1317,16 @@ class AssistantPanel:
         for titel, wert in (("Analysis", self.analyse), ("Mesh", self.netz), ("Solver", self.solver)):
             if wert is None:
                 teile.append('<span style="color:%s">%s: %s</span>'
-                             % (FARBE_FEHLER, uebersetze(titel), uebersetze("not available")))
+                             % (FARBE_FEHLER, translate(titel), translate("not available")))
             else:
                 teile.append('<span style="color:%s">%s: %s</span>'
-                             % (FARBE_OK, uebersetze(titel), wert.Label))
+                             % (FARBE_OK, translate(titel), wert.Label))
         self.kopf.setText(" &nbsp;|&nbsp; ".join(teile))
 
     def laden(self):
         """Look at analysis, mesh and an existing input file. Writes nothing."""
         QtWidgets.QApplication.processEvents()
-        self._setze_status(uebersetze("Looking for the analysis, the mesh and an existing "
+        self._setze_status(translate("Looking for the analysis, the mesh and an existing "
                                       "CalculiX input file ..."))
         self.analyse = find_analysis(self.obj)
         self.netz = fem.find_mesh(self.analyse) if self.analyse is not None else None
@@ -1339,7 +1339,7 @@ class AssistantPanel:
         if self.analyse is None or self.netz is None or self.solver is None:
             # what is missing is in the header line; this hint is about the file
             self._uebernehme_inp("", "")
-            self._setze_status(uebersetze("No .inp file yet."), "auftrag")
+            self._setze_status(translate("No .inp file yet."), "auftrag")
             return
         self.obj.WorkingDir = fem.arbeitsordner(self.solver, self.obj.Document.Name, self.netz,
                                                 gemerkt=self.obj.WorkingDir)
@@ -1348,14 +1348,14 @@ class AssistantPanel:
                                     gemerkt=self.obj.WorkingDir)
         if not pfad:
             self._uebernehme_inp("", "")
-            self._setze_status(uebersetze("No .inp file yet."), "auftrag")
+            self._setze_status(translate("No .inp file yet."), "auftrag")
             return
 
         kopie = fem.uebernehme_inp(pfad, self.solver, self.obj.Document.Name, self.netz,
                                    gemerkt=self.obj.WorkingDir)
         self._uebernehme_inp(kopie, quelle)
         typen = ", ".join(elset_reader.element_types(kopie)) or "?"
-        self._setze_status(uebersetze("%d element set(s), element type %s.")
+        self._setze_status(translate("%d element set(s), element type %s.")
                            % (len(self.elsets), typen), "ok")
 
     def _uebernehme_inp(self, pfad, quelle):
@@ -1364,28 +1364,28 @@ class AssistantPanel:
         self.pfad_feld.setText(pfad or "")
         self.pfad_feld.setCursorPosition(0)
         # where the file came from is a side note - the hint stays short
-        tip = uebersetze("The optimizer writes its iteration files next to this file.")
+        tip = translate("The optimizer writes its iteration files next to this file.")
         if pfad and quelle:
-            tip = ("%s\n%s" % (uebersetze("Source: %s") % uebersetze(
+            tip = ("%s\n%s" % (translate("Source: %s") % translate(
                 QUELLTEXTE.get(quelle, quelle)), tip))
         self.pfad_feld.setToolTip(tip)
         # size and date only - where the file came from is part of the hint
-        self.info.setText(fem.datei_info(pfad) if pfad else uebersetze("no file yet"))
-        self.knopf_inp.setText(uebersetze("Write input file (.inp)" if not pfad
+        self.info.setText(fem.datei_info(pfad) if pfad else translate("no file yet"))
+        self.knopf_inp.setText(translate("Write input file (.inp)" if not pfad
                                           else "Rewrite input file (.inp)"))
         ordner = os.path.dirname(pfad) if pfad else self.obj.WorkingDir
         da = bool(ordner) and os.path.isdir(ordner)
         self.knopf_ordner.setEnabled(da)
-        self.knopf_ordner.setToolTip(uebersetze("Show this directory in the file manager: %s")
+        self.knopf_ordner.setToolTip(translate("Show this directory in the file manager: %s")
                                      % ordner if da
-                                     else uebersetze("There is no working directory yet."))
+                                     else translate("There is no working directory yet."))
         # writing an input file needs the whole analysis case
         bereit = self.analyse is not None and self.netz is not None and self.solver is not None
         self.knopf_inp.setEnabled(bereit)
         if bereit:
             self.knopf_inp.setToolTip(TIP_INP)
         else:
-            self.knopf_inp.setToolTip(uebersetze("Possible as soon as the analysis has a mesh "
+            self.knopf_inp.setToolTip(translate("Possible as soon as the analysis has a mesh "
                                                  "and a solver."))
 
         if not pfad or not os.path.isfile(pfad):
@@ -1433,7 +1433,7 @@ class AssistantPanel:
             eintraege = ["%s = %g mm" % (name, wert)
                          for name, wert in sorted(getattr(self, "dicken", {}).items())]
             self.hinweis_dicke.setText(
-                uebersetze("Shell thickness from the input file: %s") % ", ".join(eintraege)
+                translate("Shell thickness from the input file: %s") % ", ".join(eintraege)
                 if eintraege else "")
             self.hinweis_dicke.setVisible(bool(eintraege))
         self.felder_stress = {}
@@ -1445,7 +1445,7 @@ class AssistantPanel:
             auswahl = _combo_schmal(QtWidgets.QComboBox())
             reihenfolge = (dom.DESIGN, dom.NON_DESIGN, dom.IGNORE)
             for rolle in reihenfolge:
-                auswahl.addItem(uebersetze(dom.ROLE_LABELS[rolle]), rolle)
+                auswahl.addItem(translate(dom.ROLE_LABELS[rolle]), rolle)
             auswahl.setCurrentIndex(reihenfolge.index(self.domains.get(name, dom.IGNORE)))
             auswahl.currentIndexChanged.connect(
                 lambda _index, feld=auswahl, setname=name: self._rolle_geaendert(setname, feld))
@@ -1458,7 +1458,7 @@ class AssistantPanel:
             sigma.setValidator(QtGui.QDoubleValidator(0.0, 100000.0, 2, sigma))
             sigma.setPlaceholderText("–")
             sigma.setMaximumWidth(58)
-            sigma.setToolTip(uebersetze("Allowable stress (von Mises) in MPa - leave empty to "
+            sigma.setToolTip(translate("Allowable stress (von Mises) in MPa - leave empty to "
                                         "run without a failure index. The model needs real "
                                         "loads for it."))
             wert = self.stress.get(name)
@@ -1507,11 +1507,11 @@ class AssistantPanel:
         self.obj.StressLimits = dom.format_stress(self.stress, self.stress_aus)
         self._zeige_stress_hinweis()
         if wert > 0:
-            App.Console.PrintMessage(uebersetze("TopoOpt: allowable stress for '%s' is %s MPa - "
+            App.Console.PrintMessage(translate("TopoOpt: allowable stress for '%s' is %s MPa - "
                                                 "the run reports a failure index.\\n")
                                      % (elset, text))
         else:
-            App.Console.PrintMessage(uebersetze("TopoOpt: no allowable stress for '%s' - "
+            App.Console.PrintMessage(translate("TopoOpt: no allowable stress for '%s' - "
                                                 "the run works without a failure index.\\n")
                                      % elset)
 
@@ -1519,8 +1519,8 @@ class AssistantPanel:
         rolle = feld.itemData(feld.currentIndex())
         self.domains[elset] = rolle
         self._speichere_domains()
-        App.Console.PrintMessage(uebersetze("TopoOpt: '%s' is now %s.\n")
-                                 % (elset, uebersetze(dom.ROLE_LABELS.get(rolle, rolle))))
+        App.Console.PrintMessage(translate("TopoOpt: '%s' is now %s.\n")
+                                 % (elset, translate(dom.ROLE_LABELS.get(rolle, rolle))))
 
     def _speichere_domains(self):
         self.obj.Domains = dom.format_domains(self.domains)
@@ -1529,25 +1529,25 @@ class AssistantPanel:
     def _inp_erzeugen(self):
         """Write a new input file - only on an explicit click (can take seconds)."""
         if self.analyse is None or self.netz is None or self.solver is None:
-            self._setze_status(uebersetze("Without analysis, mesh and solver no input file can "
+            self._setze_status(translate("Without analysis, mesh and solver no input file can "
                                            "be written."), "fehler")
             return
         self.knopf_inp.setEnabled(False)
-        self._setze_status(uebersetze("Writing the CalculiX input file from the FEM model ... "
+        self._setze_status(translate("Writing the CalculiX input file from the FEM model ... "
                                       "FreeCAD is blocked while it runs."), "info")
         try:
             pfad, dauer = fem.erzeuge_inp(self.analyse, self.solver, self.netz,
                                           self.obj.Document.Name, gemerkt=self.obj.WorkingDir)
         except Exception as exc:
-            self._setze_status(uebersetze("The input file could not be written: %s") % exc,
+            self._setze_status(translate("The input file could not be written: %s") % exc,
                                "fehler")
             self.knopf_inp.setEnabled(True)
             return
         self._uebernehme_inp(pfad, "written")
         typen = ", ".join(elset_reader.element_types(pfad)) or "?"
-        self._setze_status(uebersetze("%d element set(s), element type %s.")
+        self._setze_status(translate("%d element set(s), element type %s.")
                            % (len(self.elsets), typen), "ok")
-        App.Console.PrintMessage("TopoOpt: %s\n" % uebersetze("input file written in %.1f s")
+        App.Console.PrintMessage("TopoOpt: %s\n" % translate("input file written in %.1f s")
                                  % dauer)
         self.knopf_inp.setEnabled(True)
 
@@ -1555,7 +1555,7 @@ class AssistantPanel:
         """Show the working directory in the file manager of the system."""
         ordner = os.path.dirname(self.obj.InpFile) if self.obj.InpFile else self.obj.WorkingDir
         if not ordner or not os.path.isdir(ordner):
-            self._setze_status(uebersetze("There is no working directory yet."), "fehler")
+            self._setze_status(translate("There is no working directory yet."), "fehler")
             return
         try:
             os.startfile(ordner)                      # Windows
@@ -1563,7 +1563,7 @@ class AssistantPanel:
             try:
                 QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(ordner))
             except Exception as exc:
-                self._setze_status(uebersetze("The directory could not be opened (%s): %s")
+                self._setze_status(translate("The directory could not be opened (%s): %s")
                                    % (exc, ordner), "fehler")
 
     # -------------------------------------------------- step 2: parameters

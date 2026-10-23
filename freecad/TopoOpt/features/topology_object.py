@@ -3,7 +3,7 @@
 
 import FreeCAD as App
 
-from ..core.i18n import uebersetze
+from ..core.i18n import translate
 from ..core.params import (BASES, DEFAULT_FILTERS, FORMATS, MASS_CHANGE,
                            format_filters)
 
@@ -21,24 +21,24 @@ def ensure_properties(obj):
         # this object, so a link back to it would make the dependency graph cyclic
         # ("The graph must be a DAG", "still touched after recompute")
         obj.addProperty("App::PropertyString", "AnalysisName", GROUP,
-                        uebersetze("FEM analysis this optimization belongs to"))
+                        translate("FEM analysis this optimization belongs to"))
     if not hasattr(obj, "Domains"):
         obj.addProperty("App::PropertyStringList", "Domains", GROUP,
-                        uebersetze("Element sets and their role: "
+                        translate("Element sets and their role: "
                                    "<set>|<design|non_design|ignore>"))
     if not hasattr(obj, "StressLimits"):
         # beso only computes a failure index when an allowable stress is given
         # (domain_FI in beso_conf.py) - regardless of the optimization goal
         obj.addProperty("App::PropertyStringList", "StressLimits", GROUP,
-                        uebersetze("Allowable stress per element set (MPa): "
+                        translate("Allowable stress per element set (MPa): "
                                    "<set>|<value> - empty means no failure index"))
     if not hasattr(obj, "WorkingDir"):
         obj.addProperty("App::PropertyString", "WorkingDir", GROUP,
-                        uebersetze("Working directory of the optimization (no spaces)"))
+                        translate("Working directory of the optimization (no spaces)"))
         obj.setEditorMode("WorkingDir", 1)          # read only in the property editor
     if not hasattr(obj, "InpFile"):
         obj.addProperty("App::PropertyString", "InpFile", GROUP,
-                        uebersetze("CalculiX input file the optimization is based on"))
+                        translate("CalculiX input file the optimization is based on"))
         obj.setEditorMode("InpFile", 1)
 
     # --- parameters of the optimization (step 2) ---------------------------
@@ -46,22 +46,22 @@ def ensure_properties(obj):
     # values the text of every property explains.
     if not hasattr(obj, "MassGoalRatio"):
         obj.addProperty("App::PropertyFloat", "MassGoalRatio", GROUP,
-                        uebersetze("Target mass as a fraction of the full mass "
+                        translate("Target mass as a fraction of the full mass "
                                    "(0.6 = 60 % of the material stays)"))
         obj.MassGoalRatio = 0.6
     if not hasattr(obj, "OptimizationBase"):
         obj.addProperty("App::PropertyEnumeration", "OptimizationBase", GROUP,
-                        uebersetze("What is optimized: stiffness (usual), buckling, "
+                        translate("What is optimized: stiffness (usual), buckling, "
                                    "heat or failure_index"))
         obj.OptimizationBase = list(BASES)
         obj.OptimizationBase = "stiffness"
     if not hasattr(obj, "IterationsLimit"):
         obj.addProperty("App::PropertyString", "IterationsLimit", GROUP,
-                        uebersetze("Maximum number of iterations or 'auto'"))
+                        translate("Maximum number of iterations or 'auto'"))
         obj.IterationsLimit = "auto"
     if not hasattr(obj, "Tolerance"):
         obj.addProperty("App::PropertyFloat", "Tolerance", GROUP,
-                        uebersetze("Stop when the mean stress changes less than this "
+                        translate("Stop when the mean stress changes less than this "
                                    "value in the last 5 iterations"))
         obj.Tolerance = 1e-3
     if not hasattr(obj, "FIViolatedTolerance"):
@@ -69,43 +69,43 @@ def ensure_properties(obj):
         # as soon as this many more elements than at iteration 0 exceed it - a one-iteration
         # spike of two elements is enough with the default (see decisions.md, D42)
         obj.addProperty("App::PropertyInteger", "FIViolatedTolerance", GROUP,
-                        uebersetze("Freeze the mass when this many more elements than at the "
+                        translate("Freeze the mass when this many more elements than at the "
                                    "start exceed the stress limit (beso: 1)"))
         obj.FIViolatedTolerance = 1
     if not hasattr(obj, "CpuCores"):
         obj.addProperty("App::PropertyInteger", "CpuCores", GROUP,
-                        uebersetze("Processor cores for the solver (0 = all)"))
+                        translate("Processor cores for the solver (0 = all)"))
         obj.CpuCores = 0
     if not hasattr(obj, "MassChange"):
         obj.addProperty("App::PropertyEnumeration", "MassChange", GROUP,
-                        uebersetze("How much material is added or removed per iteration"))
+                        translate("How much material is added or removed per iteration"))
         obj.MassChange = list(MASS_CHANGE)
         obj.MassChange = "normal"
     if not hasattr(obj, "Filters"):
         obj.addProperty("App::PropertyString", "Filters", GROUP,
-                        uebersetze("Sensitivity filters, Python list: "
+                        translate("Sensitivity filters, Python list: "
                                    "[[type, range, domain, ...], ...]"))
         obj.Filters = format_filters(DEFAULT_FILTERS)
     if not hasattr(obj, "SaveIterations"):
         obj.addProperty("App::PropertyInteger", "SaveIterations", GROUP,
-                        uebersetze("Save intermediate results every n-th iteration "
+                        translate("Save intermediate results every n-th iteration "
                                    "(0 = only the final result)"))
         # 10 and not the beso default of 1: every saved iteration of a fine mesh can
         # need 100 MB and more, and the final result is what the user wants
         obj.SaveIterations = 10
     if not hasattr(obj, "ResultFormat"):
         obj.addProperty("App::PropertyEnumeration", "ResultFormat", GROUP,
-                        uebersetze("File format of the resulting meshes"))
+                        translate("File format of the resulting meshes"))
         obj.ResultFormat = list(FORMATS)
         obj.ResultFormat = "inp vtk"
     if not hasattr(obj, "RobusterRadius"):
         # result of the robust filter radius (beso needs a value, not "robust")
         obj.addProperty("App::PropertyFloat", "RobusterRadius", GROUP,
-                        uebersetze("Calculated robust filter radius in mm (0 = not calculated)"))
+                        translate("Calculated robust filter radius in mm (0 = not calculated)"))
         obj.setEditorMode("RobusterRadius", 1)      # read only in the property editor
     if not hasattr(obj, "MittlereGroesse"):
         obj.addProperty("App::PropertyFloat", "MittlereGroesse", GROUP,
-                        uebersetze("Mean element size of the design space in mm"))
+                        translate("Mean element size of the design space in mm"))
         obj.setEditorMode("MittlereGroesse", 1)
 
 

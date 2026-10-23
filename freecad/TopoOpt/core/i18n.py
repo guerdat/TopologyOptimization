@@ -474,7 +474,7 @@ def sprache():
             einstellung = ""
     return einstellung.split("_")[0].split("-")[0].lower()
 
-def uebersetze(text):
+def translate(text):
     """German text when FreeCAD runs in German, otherwise the English source."""
     if sprache() == "de":
         return DEUTSCH.get(text, text)

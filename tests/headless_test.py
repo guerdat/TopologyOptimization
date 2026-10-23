@@ -198,9 +198,9 @@ App.closeDocument(doc3.Name)
 from freecad.TopoOpt.core import i18n  # noqa: E402
 
 unbekannt = "a text that is not in the dictionary"
-pruefe(i18n.uebersetze(unbekannt) == unbekannt, "unbekannte Texte bleiben unveraendert")
-pruefe(i18n.uebersetze("Initialize") in ("Initialize", "Initialisieren"),
-       "bekannter Text wird uebersetzt oder bleibt englisch: %r" % i18n.uebersetze("Initialize"))
+pruefe(i18n.translate(unbekannt) == unbekannt, "unbekannte Texte bleiben unveraendert")
+pruefe(i18n.translate("Initialize") in ("Initialize", "Initialisieren"),
+       "bekannter Text wird uebersetzt oder bleibt englisch: %r" % i18n.translate("Initialize"))
 # The language comes from FreeCAD's settings or from the system - which language that
 # is depends on the machine (in a CI without a locale it is "C").  The check therefore
 # covers only what the function promises: an empty result or a code made of letters.

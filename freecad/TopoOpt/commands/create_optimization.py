@@ -10,7 +10,7 @@ hint instead of a silently created object somewhere in the document.
 import FreeCAD as App
 import FreeCADGui as Gui
 
-from ..core.i18n import uebersetze
+from ..core.i18n import translate
 from ..features import create_topology_object
 from ..resources import icon
 
@@ -35,8 +35,8 @@ class CreateOptimizationCommand:
     def GetResources(self):
         return {
             "Pixmap": icon("TopoOpt.svg"),
-            "MenuText": uebersetze("Topology Optimization"),
-            "ToolTip": uebersetze("Create a topology optimization in the active FEM analysis"),
+            "MenuText": translate("Topology Optimization"),
+            "ToolTip": translate("Create a topology optimization in the active FEM analysis"),
         }
 
     def IsActive(self):
@@ -52,7 +52,7 @@ class CreateOptimizationCommand:
             return
         obj = create_topology_object(doc, analysis)
         doc.recompute()
-        App.Console.PrintMessage(uebersetze("TopoOpt: '%s' was added to the analysis '%s'.\n")
+        App.Console.PrintMessage(translate("TopoOpt: '%s' was added to the analysis '%s'.\n")
                                  % (obj.Label, analysis.Label))
         # like the FEM commands: show the task dialog right after creating the object
         from ..gui.assistant import open_assistant
@@ -62,8 +62,8 @@ class CreateOptimizationCommand:
         from PySide import QtWidgets
         QtWidgets.QMessageBox.information(
             Gui.getMainWindow(),
-            uebersetze("No active analysis"),
-            uebersetze("Please activate a FEM analysis in the tree first (double click, or right "
+            translate("No active analysis"),
+            translate("Please activate a FEM analysis in the tree first (double click, or right "
                        "click > Activate analysis).\n\nThe topology optimization is added to that "
                        "analysis."))
 
