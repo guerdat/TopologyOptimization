@@ -93,7 +93,7 @@ try:
         ecken = panel.getStandardButtons()
         pruefe(bool(ecken & QtWidgets.QDialogButtonBox.Ok.value), "OK-Knopf vorhanden")
         pruefe(bool(ecken & QtWidgets.QDialogButtonBox.Close.value), "Schliessen-Knopf vorhanden")
-        panel._schliessen()
+        panel._close()
         pruefe(assist.panel_for(obj.Name) is None, "Assistent wurde geschlossen")
 
     App.closeDocument(doc.Name)

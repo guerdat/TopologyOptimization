@@ -233,46 +233,46 @@ def fehlerfaelle():
     def panel_bauen():
         obj = create_topology_object(doc, analyse, "Szenario%d" % int(time.time() * 1000 % 10000))
         panel = AssistantPanel(obj)
-        panel._zeige_schritt(3)
+        panel._show_step(3)
         return obj, panel
 
     # 1) without a mesh
     doc.removeObject(netz.Name)
     doc.recompute()
     obj, panel = panel_bauen()
-    panel._lauf_starten()
+    panel._start_run()
     pruefe("ohne Netz startet kein Lauf",
-           panel._lauf_prozess is None and "Netz" in panel.lauf_status.text(),
-           panel.lauf_status.text())
+           panel._run_process is None and "Netz" in panel.run_status.text(),
+           panel.run_status.text())
     # 2) without a solver (mesh back in place)
     doc.addObject(netz.TypeId, netz.Name)
     doc.recompute()
     doc.removeObject(solver.Name)
     doc.recompute()
     obj, panel = panel_bauen()
-    panel._lauf_starten()
+    panel._start_run()
     pruefe("ohne Solver startet kein Lauf",
-           panel._lauf_prozess is None and "Solver" in panel.lauf_status.text(),
-           panel.lauf_status.text())
+           panel._run_process is None and "Solver" in panel.run_status.text(),
+           panel.run_status.text())
     doc.addObject(solver.TypeId, solver.Name)
     doc.recompute()
     # 3) without .inp
     obj, panel = panel_bauen()
     obj.InpFile = ""
-    panel._lauf_starten()
+    panel._start_run()
     pruefe("ohne Eingabedatei startet kein Lauf",
-           panel._lauf_prozess is None and "Eingabedatei" in panel.lauf_status.text(),
-           panel.lauf_status.text())
+           panel._run_process is None and "Eingabedatei" in panel.run_status.text(),
+           panel.run_status.text())
     # 4) without design space
     obj, panel = panel_bauen()
     panel.stress = {}
     for name in list(panel.domains):
         panel.domains[name] = "ignore"
-    panel._speichere_domains()
-    panel._lauf_starten()
+    panel._save_domains()
+    panel._start_run()
     pruefe("ohne Design-Raum startet kein Lauf",
-           panel._lauf_prozess is None and "Design" in panel.lauf_status.text(),
-           panel.lauf_status.text())
+           panel._run_process is None and "Design" in panel.run_status.text(),
+           panel.run_status.text())
     App.closeDocument(doc.Name)
     try:
         os.remove(kopie)
