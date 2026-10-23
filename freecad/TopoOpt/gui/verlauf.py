@@ -77,8 +77,10 @@ class Verlauf(object):
             mdi = tab.mdiArea() if hasattr(tab, "mdiArea") else None
             if mdi is not None:
                 mdi.setActiveSubWindow(tab)
-            # auch aus dem minimierten Zustand holen und nach oben legen
-            tab.showNormal()
+            # nur wenn es wirklich minimiert ist: im Tab-Modus sind die Tabs intern
+            # maximiert - ein showNormal() wuerde sie zu freistehenden Fenstern machen
+            if tab.isMinimized():
+                tab.showNormal()
             tab.raise_()
             tab.activateWindow()
         except Exception:

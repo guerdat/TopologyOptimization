@@ -467,12 +467,16 @@ try:
         _mdi.setActiveSubWindow(_fremd.parentWidget() if not hasattr(_fremd, "mdiArea")
                                else _fremd)
         _aktiv_vor = _mdi.activeSubWindow()
+        _modus_vor = _mdi.viewMode()
         panel2.verlauf.anzeigen()
         _aktiv_nach = _mdi.activeSubWindow()
         pruefe(_aktiv_nach is _sub,
                "'Show diagrams' holt den Diagramm-Tab nach vorn (vorher %r, nachher %r)"
                % (_aktiv_vor.windowTitle() if _aktiv_vor else None,
                   _aktiv_nach.windowTitle() if _aktiv_nach else None))
+        pruefe(_mdi.viewMode() == _modus_vor,
+               "die Fenster bleiben im Tab-Modus (Modus %s -> %s, 0 = Tabs)"
+               % (_modus_vor, _mdi.viewMode()))
         if _fremd is not None and _fremd.parentWidget() is not None:
             _fremd.parentWidget().close()
     else:
