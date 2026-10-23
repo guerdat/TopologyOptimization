@@ -115,9 +115,9 @@ def _conf_fuer(modell, einstellungen, ordner, beso_ordner):
     for eintrag in filter_liste:
         if len(eintrag) > 1 and eintrag[1] == "robust":
             from freecad.TopoOpt.core import radius as radius_modul
-            daten = radius_modul.gelesen(modell, [domain], [domain])
+            daten = radius_modul.read_data(modell, [domain], [domain])
             eintrag[1] = round(radius_modul.robust(daten).get("radius",
-                                                              daten.get("mittel", 1.0) * 2), 4)
+                                                              daten.get("mean", 1.0) * 2), 4)
     conf = os.path.join(beso_ordner, "beso_conf.py")
     with open(conf, "w", encoding="utf8") as fh:
         fh.write("target_path = %r\n" % ordner)
@@ -162,7 +162,7 @@ def _conf_fuer(modell, einstellungen, ordner, beso_ordner):
 
 def _ccx():
     from freecad.TopoOpt.core import conf as conf_modul
-    return conf_modul.calculix_pfad()
+    return conf_modul.calculix_path()
 
 
 def lauf(name, modell, einstellungen, beso_quelle=None):
@@ -179,12 +179,12 @@ def lauf(name, modell, einstellungen, beso_quelle=None):
             # Windows releases files with a delay - then take a fresh directory
             ordner = "%s_%d" % (ordner, int(time.time()))
     os.makedirs(ordner)
-    ziel = _kopiere_beso(os.path.join(ordner, "beso"), beso_quelle or beso_modul.ORDNER)
+    ziel = _kopiere_beso(os.path.join(ordner, "beso"), beso_quelle or beso_modul.FOLDER)
     shutil.copyfile(modell, os.path.join(ordner, os.path.basename(modell)))
     conf, domain, dicken = _conf_fuer(modell, einstellungen, ordner, ziel)
-    log = conf_modul.log_pfad(os.path.join(ordner, os.path.basename(modell)))
+    log = conf_modul.log_path(os.path.join(ordner, os.path.basename(modell)))
     start = time.time()
-    prozess = subprocess.Popen([conf_modul.python_pfad(), os.path.join(ziel, "beso_main.py")],
+    prozess = subprocess.Popen([conf_modul.python_path(), os.path.join(ziel, "beso_main.py")],
                                cwd=ordner, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True)
     ausgabe = ""
@@ -194,12 +194,12 @@ def lauf(name, modell, einstellungen, beso_quelle=None):
         prozess.kill()
         ausgabe = "TIMEOUT"
     dauer = time.time() - start
-    daten = lauf_modul.fortschritt(conf_modul.beso_log_pfad(os.path.join(
+    daten = lauf_modul.progress(conf_modul.beso_log_path(os.path.join(
         ordner, os.path.basename(modell))), einstellungen["zielmasse"])
     fehler = [z.strip() for z in (ausgabe or "").splitlines()
               if "Error:" in z or "ERROR:" in z or "Exception" in z]
     return {"name": name, "ordner": ordner, "code": prozess.returncode, "dauer": dauer,
-            "massen": daten.get("massen", []), "domain": domain, "dicken": dicken,
+            "massen": daten.get("masses", []), "domain": domain, "dicken": dicken,
             "fehler": fehler[-3:], "fehlerfrei": prozess.returncode == 0}
 
 
@@ -341,7 +341,7 @@ for _typ in ("erode sensitivity", "dilate sensitivity", "open sensitivity",
 
 def rechenmatrix(beso_quelle=None, praefix=""):
     from freecad.TopoOpt.core import beso as beso_modul
-    quelle = beso_quelle or beso_modul.ORDNER
+    quelle = beso_quelle or beso_modul.FOLDER
     laeufe = []
     for name, modell, einst in MATRIX:
         try:

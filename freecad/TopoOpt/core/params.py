@@ -73,19 +73,19 @@ def parse_filters(text):
     try:
         # ast.literal_eval and not eval: the text comes from a document file and
         # only ever contains a list of lists of numbers and strings
-        roh = ast.literal_eval(text)
+        raw = ast.literal_eval(text)
     except (ValueError, SyntaxError):
         return [list(f) for f in DEFAULT_FILTERS]
-    ergebnis = []
-    for eintrag in roh:
-        if not isinstance(eintrag, (list, tuple)) or len(eintrag) < 2:
+    result = []
+    for entry in raw:
+        if not isinstance(entry, (list, tuple)) or len(entry) < 2:
             continue
-        typ = str(eintrag[0])
-        if typ not in FILTER_TYPES:
+        kind = str(entry[0])
+        if kind not in FILTER_TYPES:
             continue
-        reichweite = eintrag[1]
-        if not isinstance(reichweite, (int, float)):
-            reichweite = "auto" if reichweite != "robust" else "robust"
-        rest = [str(w) for w in eintrag[2:]]
-        ergebnis.append([typ, reichweite] + rest)
-    return ergebnis or [list(f) for f in DEFAULT_FILTERS]
+        reach = entry[1]
+        if not isinstance(reach, (int, float)):
+            reach = "auto" if reach != "robust" else "robust"
+        rest = [str(w) for w in entry[2:]]
+        result.append([kind, reach] + rest)
+    return result or [list(f) for f in DEFAULT_FILTERS]

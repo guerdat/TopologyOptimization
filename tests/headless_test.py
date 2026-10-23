@@ -111,18 +111,18 @@ pruefe(gelesen.get("Eall") == 6, "Sammelset Eall gelesen (6)")
 pruefe(gelesen.get("Reihe") == 6, "GENERATE-Set gelesen (10..20 Schritt 2 = 6)")
 pruefe(gelesen.get("VerweisSet") == 4, "Set-Verweis wird aufgeloest (VerweisSet -> 4)")
 pruefe(elset_reader.element_types(beispiel) == ["C3D4"], "Elementtyp erkannt (C3D4)")
-pruefe(elset_reader.gesamt_elemente(beispiel) == 6, "Gesamtzahl der Elemente (6)")
+pruefe(elset_reader.total_elements(beispiel) == 6, "Gesamtzahl der Elemente (6)")
 
-sichtbar = dom.zeige_elsets(gelesen)
+sichtbar = dom.visible_elsets(gelesen)
 pruefe("Eall" not in sichtbar, "Sammelset wird nicht angeboten")
 pruefe(len(sichtbar) == 4, "vier Sets werden angeboten")
 
-vorschlag = dom.vorschlag(gelesen)
+vorschlag = dom.suggestion(gelesen)
 pruefe(vorschlag.get("Eall") is None, "Sammelset bekommt keine Rolle")
 pruefe(set(vorschlag.values()) == {dom.DESIGN},
        "ohne Vorbelegung ist jedes Set Design-Raum (nicht 'ignorieren')")
 
-vorschlag_eins = dom.vorschlag({"MaterialSolidSolid": 4, "Eall": 4})
+vorschlag_eins = dom.suggestion({"MaterialSolidSolid": 4, "Eall": 4})
 pruefe(vorschlag_eins.get("MaterialSolidSolid") == dom.DESIGN,
        "auch ein einzelnes Set ist Design-Raum")
 
@@ -131,10 +131,10 @@ pruefe(gespeichert == ["A|design", "B|non_design"], "Rollen werden stabil format
 zurueck = dom.parse_domains(gespeichert)
 pruefe(zurueck == {"A": dom.DESIGN, "B": dom.NON_DESIGN}, "Rollen werden wieder eingelesen")
 
-rollen = dom.rollen_fuer({"A": 10, "B": 10, "Neu": 10}, zurueck)
+rollen = dom.roles_for({"A": 10, "B": 10, "Neu": 10}, zurueck)
 pruefe(rollen == {"A": dom.DESIGN, "B": dom.NON_DESIGN, "Neu": dom.DESIGN},
        "Gespeichertes gilt weiter, ein neues Set ist Design-Raum (%s)" % rollen)
-rollen_leer = dom.rollen_fuer({"A": 10, "B": 10})
+rollen_leer = dom.roles_for({"A": 10, "B": 10})
 pruefe(set(rollen_leer.values()) == {dom.DESIGN},
        "ohne Vorbelegung ist alles Design-Raum")
 
@@ -156,16 +156,16 @@ dateiname = "%s.inp" % dummy_mesh.Name
 ordner = _tempfile.mkdtemp(prefix="fcfem_topoopt_test_")
 ordner2 = _tempfile.mkdtemp(prefix="fcfem_topoopt_other_")
 
-pruefe(fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", gemerkt=ordner)[0] is None,
+pruefe(fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", remembered=ordner)[0] is None,
        "ohne Datei wird nichts gefunden")
 
 # 1. the (remembered) FEM working directory is used
-pruefe(fem_core.arbeitsordner(dummy_solver, "TopoOptTest", dummy_mesh, gemerkt=ordner) == ordner,
+pruefe(fem_core.working_dir(dummy_solver, "TopoOptTest", dummy_mesh, remembered=ordner) == ordner,
        "gemerkter FEM-Arbeitsordner wird verwendet")
 
 with open(os.path.join(ordner, dateiname), "w") as fh:
     fh.write("*ELSET, ELSET=SuchSet\n1, 2, 3\n")
-pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", gemerkt=ordner)
+pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", remembered=ordner)
 pruefe(quelle == "fem", "Datei im FEM-Arbeitsordner wird gefunden")
 pruefe(os.path.dirname(pfad) == ordner, "der FEM-Arbeitsordner wird verwendet")
 
@@ -173,13 +173,13 @@ pruefe(os.path.dirname(pfad) == ordner, "der FEM-Arbeitsordner wird verwendet")
 os.remove(os.path.join(ordner, dateiname))
 with open(os.path.join(ordner2, dateiname), "w") as fh:
     fh.write("*ELSET, ELSET=SuchSet\n1, 2, 3\n")
-pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", gemerkt=ordner)
+pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", remembered=ordner)
 pruefe(quelle == "other", "anderer FEM-Arbeitsordner wird gefunden")
-kopie = fem_core.uebernehme_inp(pfad, dummy_solver, "TopoOptTest", dummy_mesh, gemerkt=ordner)
+kopie = fem_core.adopt_inp(pfad, dummy_solver, "TopoOptTest", dummy_mesh, remembered=ordner)
 pruefe(os.path.dirname(kopie) == ordner and os.path.isfile(kopie),
        "gefundene Datei wird in den FEM-Arbeitsordner kopiert")
-pruefe(fem_core.datei_info(kopie).startswith("0.0 kB"), "Dateiinfo nennt Groesse (%s)"
-       % fem_core.datei_info(kopie))
+pruefe(fem_core.file_info(kopie).startswith("0.0 kB"), "Dateiinfo nennt Groesse (%s)"
+       % fem_core.file_info(kopie))
 
 # 3. only our own (old) working directory
 os.remove(os.path.join(ordner, dateiname))
@@ -187,7 +187,7 @@ os.remove(os.path.join(ordner2, dateiname))
 eigener = fem_core.run_dir("TopoOptTest", dummy_mesh.Name)
 with open(os.path.join(eigener, dateiname), "w") as fh:
     fh.write("*ELSET, ELSET=SuchSet\n1, 2, 3\n")
-pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", gemerkt=ordner)
+pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", remembered=ordner)
 pruefe(quelle == "own", "eigener Arbeitsordner wird als letztes gefunden")
 _shutil.rmtree(ordner, ignore_errors=True)
 _shutil.rmtree(ordner2, ignore_errors=True)
@@ -204,7 +204,7 @@ pruefe(i18n.translate("Initialize") in ("Initialize", "Initialisieren"),
 # The language comes from FreeCAD's settings or from the system - which language that
 # is depends on the machine (in a CI without a locale it is "C").  The check therefore
 # covers only what the function promises: an empty result or a code made of letters.
-erkannt = i18n.sprache()
+erkannt = i18n.language()
 pruefe(erkannt == "" or erkannt.isalpha(),
        "die Sprache wird als Kuerzel erkannt (%r)" % erkannt)
 
@@ -265,7 +265,7 @@ os.remove(pfad4)
 from freecad.TopoOpt.core import beso as beso_modul  # noqa: E402
 from freecad.TopoOpt.core import radius as radius_modul  # noqa: E402
 
-ordner, fehlend = beso_modul.pruefe()
+ordner, fehlend = beso_modul.check()
 pruefe(not fehlend, "beso liegt vollstaendig im Addon (%s)" % ordner)
 if fehlend:
     print("beso: fehlende Dateien %s" % (fehlend,), flush=True)
@@ -277,18 +277,18 @@ pruefe("beso_lib" in sys.modules and sys.modules["beso_lib"] is lib,
        "beso_lib steht unter seinem eigenen Namen (so importiert beso sich selbst)")
 
 beispiel = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "beispiel.inp")
-daten = radius_modul.gelesen(beispiel, ["MaterialSolidSolid", "NichtDesignSolid"],
-                             ["MaterialSolidSolid"])
+daten = radius_modul.read_data(beispiel, ["MaterialSolidSolid", "NichtDesignSolid"],
+                               ["MaterialSolidSolid"])
 print("Elementdaten: mittel=%.4f maximum=%.4f anzahl=%s"
-      % (daten.get("mittel", -1), daten.get("maximum", -1), daten.get("anzahl", -1)), flush=True)
-pruefe(daten.get("anzahl", 0) > 0, "beso liest Elementgroessen aus der .inp (%s Elemente)"
-       % daten.get("anzahl"))
-pruefe(0 < daten.get("mittel", 0) <= daten.get("maximum", 0),
+      % (daten.get("mean", -1), daten.get("maximum", -1), daten.get("count", -1)), flush=True)
+pruefe(daten.get("count", 0) > 0, "beso liest Elementgroessen aus der .inp (%s Elemente)"
+       % daten.get("count"))
+pruefe(0 < daten.get("mean", 0) <= daten.get("maximum", 0),
        "mittlere Groesse liegt unter der groessten (%.4f <= %.4f)"
-       % (daten.get("mittel", 0), daten.get("maximum", 0)))
+       % (daten.get("mean", 0), daten.get("maximum", 0)))
 
-zu_klein = radius_modul.ohne_nachbarn(daten, daten["mittel"] * 0.1)
-gross_genug = radius_modul.ohne_nachbarn(daten, daten["mittel"] * 10.0)
+zu_klein = radius_modul.without_neighbours(daten, daten["mean"] * 0.1)
+gross_genug = radius_modul.without_neighbours(daten, daten["mean"] * 10.0)
 print("ohne Nachbarn: bei 0,1x mittel %d, bei 10x mittel %d"
       % (len(zu_klein), len(gross_genug)), flush=True)
 pruefe(len(zu_klein) > 0, "bei zu kleinem Radius fehlen Nachbarn (%d Elemente)" % len(zu_klein))
@@ -297,20 +297,20 @@ pruefe(len(gross_genug) == 0, "bei grossem Radius hat jedes Element Nachbarn")
 # the fast grid check has to return the same as beso's prepare2s
 gleich = True
 for faktor in (0.5, 1.0, 1.5, 2.0, 3.0):
-    radius = faktor * daten["mittel"]
-    if sorted(radius_modul.ohne_nachbarn(daten, radius)) != \
-            sorted(radius_modul.ohne_nachbarn_beso(daten, radius)):
+    radius = faktor * daten["mean"]
+    if sorted(radius_modul.without_neighbours(daten, radius)) != \
+            sorted(radius_modul.without_neighbours_beso(daten, radius)):
         gleich = False
         print("Unterschied bei Faktor %.1f" % faktor, flush=True)
 pruefe(gleich, "schnelle Pruefung und besos prepare2s stimmen ueberein")
 
 ergebnis = radius_modul.robust(daten)
 print("robuster Radius: Faktor %.1f -> %.4f mm, ohne Nachbarn: %d"
-      % (ergebnis.get("faktor", -1), ergebnis.get("radius", -1),
-         ergebnis.get("ohne_nachbarn", -1)), flush=True)
-pruefe(ergebnis.get("ohne_nachbarn") == 0,
+      % (ergebnis.get("factor", -1), ergebnis.get("radius", -1),
+         ergebnis.get("without_neighbours", -1)), flush=True)
+pruefe(ergebnis.get("without_neighbours") == 0,
        "robuster Radius laesst kein Element ohne Nachbarn")
-pruefe(ergebnis.get("radius", 0) >= radius_modul.BESO_AUTO * daten["mittel"],
+pruefe(ergebnis.get("radius", 0) >= radius_modul.BESO_AUTO * daten["mean"],
        "robuster Radius ist mindestens so gross wie besos 'auto'")
 pruefe(radius_modul.robust({}) == {}, "ohne Elementdaten kommt ein leeres Ergebnis")
 # beso writes a log file next to the .inp while reading it (write_to_log) - remove it
@@ -322,28 +322,28 @@ if os.path.isfile(protokoll):
 # --- step 3: the configuration for beso -------------------------------------
 from freecad.TopoOpt.core import conf as conf_modul  # noqa: E402
 
-pruefe(conf_modul.UNTERORDNER == "topoopt_beso",
-       "beso laeuft in einem Unterordner des Arbeitsordners (%s)" % conf_modul.UNTERORDNER)
-pruefe("ccx" in os.path.basename(conf_modul.calculix_pfad()).lower(),
-       "CalculiX wird gefunden (%s)" % conf_modul.calculix_pfad())
-pruefe("python" in os.path.basename(conf_modul.python_pfad() or "").lower(),
-       "ein Python fuer den Lauf wird gefunden (%s)" % conf_modul.python_pfad())
+pruefe(conf_modul.SUBFOLDER == "topoopt_beso",
+       "beso laeuft in einem Unterordner des Arbeitsordners (%s)" % conf_modul.SUBFOLDER)
+pruefe("ccx" in os.path.basename(conf_modul.calculix_path()).lower(),
+       "CalculiX wird gefunden (%s)" % conf_modul.calculix_path())
+pruefe("python" in os.path.basename(conf_modul.python_path() or "").lower(),
+       "ein Python fuer den Lauf wird gefunden (%s)" % conf_modul.python_path())
 # The interpreter must never be FreeCAD itself: on FreeCADCmd "-u" is FreeCAD's own
 # option (user parameter file), beso_main.py would be overwritten instead of running
 # (measured in the Flatpak - there sys.executable is the FreeCADCmd in the app directory).
-pruefe(conf_modul.python_pfad() is None
-       or "freecad" not in os.path.basename(conf_modul.python_pfad()).lower(),
-       "der Interpreter ist nicht FreeCAD selbst (%s)" % conf_modul.python_pfad())
-pruefe(conf_modul.calculix_pfad() == "ccx" or os.path.isfile(conf_modul.calculix_pfad()),
-       "der gefundene Solver ist eine Datei (%s)" % conf_modul.calculix_pfad())
-pruefe(conf_modul.python_pfad() is None or os.path.isfile(conf_modul.python_pfad()),
-       "der gefundene Interpreter ist eine Datei (%s)" % conf_modul.python_pfad())
+pruefe(conf_modul.python_path() is None
+       or "freecad" not in os.path.basename(conf_modul.python_path()).lower(),
+       "der Interpreter ist nicht FreeCAD selbst (%s)" % conf_modul.python_path())
+pruefe(conf_modul.calculix_path() == "ccx" or os.path.isfile(conf_modul.calculix_path()),
+       "der gefundene Solver ist eine Datei (%s)" % conf_modul.calculix_path())
+pruefe(conf_modul.python_path() is None or os.path.isfile(conf_modul.python_path()),
+       "der gefundene Interpreter ist eine Datei (%s)" % conf_modul.python_path())
 # without Python there is no run: a clear message instead of starting a wrong process,
 # and nothing is written into the working directory
-_echter_pfad = conf_modul.python_pfad
-conf_modul.python_pfad = lambda: None
+_echter_pfad = conf_modul.python_path
+conf_modul.python_path = lambda: None
 try:
-    conf_modul.starte(None, None, {}, None)
+    conf_modul.start(None, None, {}, None)
     pruefe(False, "ohne Python wird der Lauf abgelehnt")
 except RuntimeError as meldung:
     pruefe("python" in str(meldung).lower(),
@@ -351,7 +351,7 @@ except RuntimeError as meldung:
 except Exception as meldung:  # noqa: BLE001
     pruefe(False, "ohne Python kommt ein RuntimeError, nicht %r" % meldung)
 finally:
-    conf_modul.python_pfad = _echter_pfad
+    conf_modul.python_path = _echter_pfad
 
 doc5 = App.newDocument("TopoOptConfTest")
 analyse5 = doc5.addObject("Fem::FemAnalysis", "Analyse")
@@ -392,8 +392,8 @@ pruefe("SetC" not in text_ignore,
 pruefe("beso_conf_vorlage.py" in text, "die Vorlage von beso wird als Grundlage gelesen")
 
 ordner4 = _tempfile.mkdtemp(prefix="topoopt_conf_")
-ziel4, conf4 = conf_modul.schreibe_dateien(obj5, os.path.join(ordner4, "Mesh.inp"),
-                                           domains4, ordner4)
+ziel4, conf4 = conf_modul.write_files(obj5, os.path.join(ordner4, "Mesh.inp"),
+                                      domains4, ordner4)
 pruefe(os.path.isfile(conf4), "beso_conf.py wird geschrieben")
 pruefe(os.path.isfile(os.path.join(ziel4, "beso_main.py")), "beso_main.py liegt im Unterordner")
 pruefe(os.path.isfile(os.path.join(ziel4, "beso_conf_vorlage.py")),
@@ -420,7 +420,7 @@ _conf_testordner = _tempfile.mkdtemp(prefix="topoopt_start_")
 _inp5 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "beispiel.inp")
 conf_modul.subprocess.Popen = _fake_popen
 try:
-    prozess5, log5, conf5 = conf_modul.starte(obj5, _inp5, domains4, _conf_testordner)
+    prozess5, log5, conf5 = conf_modul.start(obj5, _inp5, domains4, _conf_testordner)
 finally:
     conf_modul.subprocess.Popen = _echter_popen
 if _aufrufe:
@@ -453,8 +453,8 @@ pruefe("domain_FI[_name] = [[('stress_von_Mises', _sigma * 1e6)]" in text2,
 
 # the hard proof: the written configuration executes and sets domain_FI
 obj5.StressLimits = ["SetA|235.0", "SetB|100.0"]
-ziel5, conf5 = conf_modul.schreibe_dateien(obj5, os.path.join(ordner4, "Mesh.inp"),
-                                           domains4, ordner4)
+ziel5, conf5 = conf_modul.write_files(obj5, os.path.join(ordner4, "Mesh.inp"),
+                                      domains4, ordner4)
 raum = {"__file__": conf5}          # the configuration reads the template via __file__
 # beso_main defines these names before it reads the configuration (line 25 ff.);
 # the configuration builds on them - without them it does not run
@@ -469,7 +469,7 @@ pruefe(fi.get("SetB") == [[("stress_von_Mises", 100.0e6)], [("stress_von_Mises",
        "die Konfiguration setzt domain_FI fuer SetB (%s)" % (fi.get("SetB"),))
 pruefe("SetC" not in fi, "ohne Spannung bleibt die Domain ohne Failure Index")
 pruefe(os.path.isfile(os.path.join(ziel4, "beso_lib.py")), "beso_lib.py liegt im Unterordner")
-pruefe(conf_modul.log_pfad(os.path.join(ordner4, "Mesh.inp")).endswith("Mesh_topoopt.log"),
+pruefe(conf_modul.log_path(os.path.join(ordner4, "Mesh.inp")).endswith("Mesh_topoopt.log"),
        "die Logdatei liegt neben der Eingabedatei")
 _shutil.rmtree(ordner4, ignore_errors=True)
 
@@ -483,7 +483,7 @@ beso_beispiel = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
 # that is reported - but the run does not stop: a missing file must not swallow the
 # checks after it (the VTK and state readers).
 pruefe(os.path.isfile(beso_beispiel), "die Testdatei tests/data/beso_beispiel.log ist da")
-tabelle = lauf_modul.tabelle_lesen(beso_beispiel)
+tabelle = lauf_modul.read_table(beso_beispiel)
 pruefe(len(tabelle) == 6, "die Iterationstabelle wird gelesen (6 Zeilen, 2 Laeufe)")
 if len(tabelle) == 6:
     pruefe(tabelle[0][0] == 0 and abs(tabelle[0][1]["mass"] - 20000.0) < 1e-6,
@@ -496,35 +496,35 @@ if len(tabelle) == 6:
     pruefe("fi_mean" not in tabelle[0][1],
            "ohne Failure Index gibt es keine FI-Werte (nur Masse und Energiedichte)")
 
-f = lauf_modul.fortschritt(beso_beispiel, 0.6)
-# without a table, iteration/masse/ziel are None - the checks have to report that,
+f = lauf_modul.progress(beso_beispiel, 0.6)
+# without a table, iteration/mass/target are None - the checks have to report that,
 # not abort with a TypeError (otherwise the errors after them are never seen)
-pruefe(f["iteration"] == 2 and f["masse"] is not None
-       and abs(f["masse"] - 19110.748316642857) < 1e-6,
-       "der Fortschritt kennt Iteration und Masse (%s, %s)" % (f["iteration"], f["masse"]))
-pruefe(f["ziel"] is not None and abs(f["ziel"] - 20000.0 * 0.6) < 1e-6,
-       "die Zielmasse ist der Anteil der Startmasse: %s" % f["ziel"])
-pruefe(abs(lauf_modul.anteil(f["start"], f["masse"], 0.6) - 11.12) < 0.1,
-       "der Fortschritt in Prozent: %.1f %%" % lauf_modul.anteil(f["start"], f["masse"], 0.6))
-pruefe(lauf_modul.anteil(20000.0, 8000.0, 0.6) == 100.0,
+pruefe(f["iteration"] == 2 and f["mass"] is not None
+       and abs(f["mass"] - 19110.748316642857) < 1e-6,
+       "der Fortschritt kennt Iteration und Masse (%s, %s)" % (f["iteration"], f["mass"]))
+pruefe(f["target"] is not None and abs(f["target"] - 20000.0 * 0.6) < 1e-6,
+       "die Zielmasse ist der Anteil der Startmasse: %s" % f["target"])
+pruefe(abs(lauf_modul.ratio(f["start"], f["mass"], 0.6) - 11.12) < 0.1,
+       "der Fortschritt in Prozent: %.1f %%" % lauf_modul.ratio(f["start"], f["mass"], 0.6))
+pruefe(lauf_modul.ratio(20000.0, 8000.0, 0.6) == 100.0,
        "bei der Zielmasse steht der Balken auf 100 %")
 
 beispiel_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
                             "lauf_beispiel.log")
-daten_lauf = lauf_modul.verlauf_lesen(beispiel_log, 0.6)
+daten_lauf = lauf_modul.read_history(beispiel_log, 0.6)
 print("Lauf-Protokoll: start=%s ziel=%s iteration=%s massen=%s fertig=%s"
-      % (daten_lauf["start"], daten_lauf["ziel"], daten_lauf["iteration"],
-         daten_lauf["massen"], daten_lauf["fertig"]), flush=True)
+      % (daten_lauf["start"], daten_lauf["target"], daten_lauf["iteration"],
+         daten_lauf["masses"], daten_lauf["done"]), flush=True)
 pruefe(daten_lauf["start"] is not None and abs(daten_lauf["start"] - 20000.0) < 1e-6,
        "die Startmasse wird gelesen (%s)" % daten_lauf["start"])
-pruefe(abs((daten_lauf["ziel"] or 0) - 12000.0) < 1e-6,
-       "die Zielmasse ist Anteil x Startmasse (%s)" % daten_lauf["ziel"])
+pruefe(abs((daten_lauf["target"] or 0) - 12000.0) < 1e-6,
+       "die Zielmasse ist Anteil x Startmasse (%s)" % daten_lauf["target"])
 pruefe(daten_lauf["iteration"] == 2, "die Iterationen werden gezaehlt (%d)"
        % daten_lauf["iteration"])
-pruefe(len(daten_lauf["massen"]) == 2 and abs(daten_lauf["massen"][1][1] - 19110.748) < 1e-3,
-       "die Massen je Iteration werden gelesen (%s)" % (daten_lauf["massen"],))
-pruefe(daten_lauf["fertig"] is True, "das Ende des Laufs wird erkannt")
-pruefe(lauf_modul.verlauf_lesen("gibt-es-nicht.log")["iteration"] == 0,
+pruefe(len(daten_lauf["masses"]) == 2 and abs(daten_lauf["masses"][1][1] - 19110.748) < 1e-3,
+       "die Massen je Iteration werden gelesen (%s)" % (daten_lauf["masses"],))
+pruefe(daten_lauf["done"] is True, "das Ende des Laufs wird erkannt")
+pruefe(lauf_modul.read_history("gibt-es-nicht.log")["iteration"] == 0,
        "ohne Logdatei kommt ein leeres Ergebnis")
 
 # --- shell thicknesses from the .inp (*SHELL SECTION) -----------------------
@@ -572,24 +572,24 @@ pruefe(material_modul.MPa("") is None and material_modul.MPa("zach MPa") is None
 
 # Values as in FreeCAD's material cards: Aluminum-6061-T6 has 'YieldStrength: 276 MPa',
 # CalculiX-Steel has no yield strength (only YoungsModulus)
-streck = material_modul.streckgrenze(
+streck = material_modul.yield_strength(
     [("MaterialSolidSolid", {"Name": "Alu", "YieldStrength": "276 MPa",
                              "UltimateTensileStrength": "310 MPa"})],
     ["MaterialSolidSolid"])
 pruefe(streck == {"MaterialSolidSolid": 276.0},
        "die Streckgrenze der Karte wird zum Vorschlag (%s)" % (streck,))
-ohne = material_modul.streckgrenze(
+ohne = material_modul.yield_strength(
     [("MaterialSolidSolid", {"Name": "CalculiX-Steel", "YoungsModulus": "2.1e+08 kg/(mm*s^2)"})],
     ["MaterialSolidSolid"])
 pruefe(ohne == {}, "ohne Streckgrenze in der Karte kommt kein Vorschlag (%s)" % (ohne,))
-mehrere = material_modul.streckgrenze(
+mehrere = material_modul.yield_strength(
     [("MaterialSolid", {"YieldStrength": "276 MPa"}),
      ("AnderesMaterial", {"YieldStrength": "100 MPa"})],
     ["MaterialSolidSolid", "AnderesMaterialSolid"])
 pruefe(mehrere == {"MaterialSolidSolid": 276.0, "AnderesMaterialSolid": 100.0},
        "bei mehreren Materialien wird ueber den Namen zugeordnet (%s)" % (mehrere,))
-nur_eins = material_modul.streckgrenze([("Irgendwas", {"YieldStrength": "235 MPa"})],
-                                       ["VoelligAnderes"])
+nur_eins = material_modul.yield_strength([("Irgendwas", {"YieldStrength": "235 MPa"})],
+                                         ["VoelligAnderes"])
 pruefe(nur_eins == {"VoelligAnderes": 235.0},
        "bei genau einem Material gilt es fuer alle Sets (%s)" % (nur_eins,))
 
@@ -604,13 +604,13 @@ with open(section_inp, "w", encoding="utf8") as fh:
 zuordnung = elset_reader.read_section_materials(section_inp)
 pruefe(zuordnung == {"MaterialSolidSolid": "MaterialSolid", "FlaechenSet": "MaterialSolid001"},
        "die Materialzuordnung kommt aus den Section-Karten (%s)" % (zuordnung,))
-aus_inp = material_modul.streckgrenze(
+aus_inp = material_modul.yield_strength(
     [("MaterialSolid", {"YieldStrength": "235 MPa"}),
      ("MaterialSolid001", {"YieldStrength": "276 MPa"})],
     ["MaterialSolidSolid"], {"MaterialSolidSolid": "MaterialSolid001"})
 pruefe(aus_inp == {"MaterialSolidSolid": 276.0},
        "die Zuordnung aus der .inp schlaegt den Namensanfang (%s)" % (aus_inp,))
-ohne_inp = material_modul.streckgrenze(
+ohne_inp = material_modul.yield_strength(
     [("MaterialSolid", {"YieldStrength": "235 MPa"}),
      ("MaterialSolid001", {"YieldStrength": "276 MPa"})],
     ["MaterialSolidSolid"])
@@ -623,11 +623,11 @@ with open(kaputt, "w", encoding="utf8") as fh:
     fh.write("*NODE\n1, 0, 0, 0\n2, 1, 0, 0\n"
              "*ELEMENT, TYPE=C3D10, ELSET=Set1\n1, 1,2\n"
              "*MATERIAL, NAME=M1\n*ELASTIC\n210000, 0.3\n")
-bericht = elset_reader.pruefe_inp(kaputt, ["Set1"])
-pruefe(bericht["fehlende_karten"] == ["*STEP"],
-       "eine abgebrochene .inp wird erkannt (es fehlt %s)" % bericht["fehlende_karten"])
-pruefe(bericht["ohne_material"] == ["Set1"],
-       "dazu faellt das Set ohne Section-Karte auf (%s)" % bericht["ohne_material"])
+bericht = elset_reader.check_inp(kaputt, ["Set1"])
+pruefe(bericht["missing_cards"] == ["*STEP"],
+       "eine abgebrochene .inp wird erkannt (es fehlt %s)" % bericht["missing_cards"])
+pruefe(bericht["without_material"] == ["Set1"],
+       "dazu faellt das Set ohne Section-Karte auf (%s)" % bericht["without_material"])
 
 ganz = os.path.join(tempfile.gettempdir(), "topoopt_ganz.inp")
 with open(ganz, "w", encoding="utf8") as fh:
@@ -637,19 +637,19 @@ with open(ganz, "w", encoding="utf8") as fh:
              "*MATERIAL, NAME=M1\n*ELASTIC\n210000, 0.3\n"
              "*SOLID SECTION, ELSET=Set1, MATERIAL=M1\n"
              "*STEP\n*STATIC\n*BOUNDARY\n1, 1, 3, 0.0\n*END STEP\n")
-bericht2 = elset_reader.pruefe_inp(ganz, ["Set1", "Set2"])
-pruefe(bericht2["fehlende_karten"] == [], "eine vollstaendige .inp meldet keine fehlende Karte")
-pruefe(bericht2["ohne_material"] == ["Set2"],
-       "nur das Set ohne Section-Karte wird genannt (%s)" % bericht2["ohne_material"])
+bericht2 = elset_reader.check_inp(ganz, ["Set1", "Set2"])
+pruefe(bericht2["missing_cards"] == [], "eine vollstaendige .inp meldet keine fehlende Karte")
+pruefe(bericht2["without_material"] == ["Set2"],
+       "nur das Set ohne Section-Karte wird genannt (%s)" % bericht2["without_material"])
 
 # A material without a Young's modulus makes FreeCAD abort while writing the .inp
-fehlend = material_modul.fehlende_werte(
+fehlend = material_modul.missing_values(
     [("Vollstaendig", {"YoungsModulus": "210000 MPa", "PoissonRatio": "0.3"}),
      ("Leer", {"Density": "7.9e-06 kg/mm^3"}),
      ("OhneNu", {"YoungsModulus": "210000 MPa"})])
 pruefe(fehlend == {"Leer": ["YoungsModulus", "PoissonRatio"], "OhneNu": ["PoissonRatio"]},
        "fehlende Werkstoffwerte werden je Material gemeldet (%s)" % fehlend)
-pruefe(material_modul.fehlende_werte([("A", {"YoungsModulus": "x", "PoissonRatio": "y"})]) == {},
+pruefe(material_modul.missing_values([("A", {"YoungsModulus": "x", "PoissonRatio": "y"})]) == {},
        "ein vollstaendiges Material wird nicht gemeldet")
 
 # --- read VTK iterations (resulting_states.vtk) -------------------------------
@@ -657,15 +657,15 @@ from freecad.TopoOpt.core import vtk as vtk_modul  # noqa: E402
 
 vtk_beispiel = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
                             "states_beispiel.vtk")
-vtk_daten = vtk_modul.laden(vtk_beispiel)
-pruefe(len(vtk_daten["punkte"]) == 170, "die Knoten werden gelesen (%d)"
-       % len(vtk_daten["punkte"]))
-pruefe(len(vtk_daten["zellen"]) == 401, "die Zellen werden gelesen (%d)"
-       % len(vtk_daten["zellen"]))
-pruefe(vtk_daten["zellen"][0][0] < len(vtk_daten["punkte"]),
-       "die Knotennummern sind 0-basiert (erste Nummer %d)" % vtk_daten["zellen"][0][0])
-pruefe(len(vtk_daten["zustaende"]) == 2 and vtk_daten["namen"][0] == "element_states001",
-       "beide Iterationen werden gelesen (%s)" % (vtk_daten["namen"],))
+vtk_daten = vtk_modul.load(vtk_beispiel)
+pruefe(len(vtk_daten["points"]) == 170, "die Knoten werden gelesen (%d)"
+       % len(vtk_daten["points"]))
+pruefe(len(vtk_daten["cells"]) == 401, "die Zellen werden gelesen (%d)"
+       % len(vtk_daten["cells"]))
+pruefe(vtk_daten["cells"][0][0] < len(vtk_daten["points"]),
+       "die Knotennummern sind 0-basiert (erste Nummer %d)" % vtk_daten["cells"][0][0])
+pruefe(len(vtk_daten["states"]) == 2 and vtk_daten["names"][0] == "element_states001",
+       "beide Iterationen werden gelesen (%s)" % (vtk_daten["names"],))
 
 # The node numbers are 0-based: cells shifted by -1 give corners that lie far
 # apart.  The test checks that the cells really hang together (small edge
@@ -681,10 +681,10 @@ def _groesste_kante(punkte, zellen, zustand):
                 groesste = max(groesste, (ecken[a] - ecken[b]).Length)
     return groesste
 
-richtig = _groesste_kante(vtk_daten["punkte"], vtk_daten["zellen"], vtk_daten["zustaende"][0])
-verschoben = _groesste_kante(vtk_daten["punkte"],
-                             [[k - 1 for k in zelle] for zelle in vtk_daten["zellen"]],
-                             vtk_daten["zustaende"][0])
+richtig = _groesste_kante(vtk_daten["points"], vtk_daten["cells"], vtk_daten["states"][0])
+verschoben = _groesste_kante(vtk_daten["points"],
+                             [[k - 1 for k in zelle] for zelle in vtk_daten["cells"]],
+                             vtk_daten["states"][0])
 # The example mesh is coarse (beam 100 x 20 x 10 mm, 401 elements): the largest
 # element edge is around 13 mm, with shifted numbers above 100 mm.
 pruefe(richtig < 20, "mit 0-basierten Nummern bleibt die groesste Kante zur Elementgroesse "
@@ -693,24 +693,24 @@ pruefe(verschoben > 5 * richtig,
        "mit -1 verschobenen Nummern wird das Netz zerfetzt (%.2f mm gegen %.2f mm, Faktor %.1f)"
        % (verschoben, richtig, verschoben / richtig))
 
-zusammen = vtk_modul.zusammenfassung(vtk_daten, 1)
-pruefe(zusammen["nummer"] == 1 and zusammen["anzahl"] == 2 and zusammen["gesamt"] == 401,
+zusammen = vtk_modul.summary(vtk_daten, 1)
+pruefe(zusammen["number"] == 1 and zusammen["count"] == 2 and zusammen["total"] == 401,
        "die Zusammenfassung kennt Iteration, Anzahl und Zellen (%s)" % (zusammen,))
-pruefe(0 <= zusammen["prozent"] <= 100, "der Materialanteil liegt zwischen 0 und 100 %% (%.1f)"
-       % zusammen["prozent"])
+pruefe(0 <= zusammen["percent"] <= 100, "der Materialanteil liegt zwischen 0 und 100 %% (%.1f)"
+       % zusammen["percent"])
 
-flaechen = vtk_modul.randflaechen(vtk_daten["zellen"], vtk_daten["zustaende"][-1],
-                                  vtk_daten["punkte"])
+flaechen = vtk_modul.boundary_faces(vtk_daten["cells"], vtk_daten["states"][-1],
+                                    vtk_daten["points"])
 pruefe(len(flaechen) > 100, "die Oberflaeche hat Flaechen (%d)" % len(flaechen))
-volumen = vtk_modul.volumen(vtk_daten["punkte"], flaechen)
+volumen = vtk_modul.volume(vtk_daten["points"], flaechen)
 pruefe(volumen > 0, "die Flaechen zeigen nach aussen (Volumen %.1f positiv)" % volumen)
-zufall = vtk_modul.volumen(vtk_daten["punkte"], [f[::-1] for f in flaechen])
+zufall = vtk_modul.volume(vtk_daten["points"], [f[::-1] for f in flaechen])
 pruefe(zufall < 0, "umgedrehte Flaechen ergeben negatives Volumen (%.1f)" % zufall)
-kanten = vtk_modul.kantenprobe(flaechen)
+kanten = vtk_modul.edge_check(flaechen)
 pruefe(kanten.get(2, 0) > 0.9 * sum(kanten.values()),
        "die Kantenprobe zeigt eine geschlossene Oberflaeche (%s)" % (kanten,))
-pruefe(vtk_modul.zellvolumen(vtk_daten["punkte"], vtk_daten["zellen"],
-                             vtk_daten["zustaende"][-1]) > 0,
+pruefe(vtk_modul.cell_volume(vtk_daten["points"], vtk_daten["cells"],
+                             vtk_daten["states"][-1]) > 0,
        "das Zellvolumen des Materials ist positiv")
 
 print()

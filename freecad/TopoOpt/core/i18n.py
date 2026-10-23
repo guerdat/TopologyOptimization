@@ -11,7 +11,7 @@ to replace with the `.ts`/`.qm` mechanism.
 
 import FreeCAD as App
 
-DEUTSCH = {
+GERMAN = {
     # workbench and command
     "Topology optimization with CalculiX (beso)":
         "Topologieoptimierung mit CalculiX (beso)",
@@ -459,23 +459,23 @@ DEUTSCH = {
         "CalculiX-Eingabedatei, auf der die Optimierung aufbaut",
 }
 
-def sprache():
+def language():
     """Language FreeCAD uses, as a two letter code ('de', 'en', ...) or ''."""
     try:
-        einstellung = App.ParamGet(
+        setting = App.ParamGet(
             "User parameter:BaseApp/Preferences/General").GetString("Language", "")
     except Exception:
-        einstellung = ""
-    if not einstellung:                      # empty = follow the system language
+        setting = ""
+    if not setting:                      # empty = follow the system language
         try:
             from PySide import QtCore
-            einstellung = QtCore.QLocale.system().name()
+            setting = QtCore.QLocale.system().name()
         except Exception:
-            einstellung = ""
-    return einstellung.split("_")[0].split("-")[0].lower()
+            setting = ""
+    return setting.split("_")[0].split("-")[0].lower()
 
 def translate(text):
     """German text when FreeCAD runs in German, otherwise the English source."""
-    if sprache() == "de":
-        return DEUTSCH.get(text, text)
+    if language() == "de":
+        return GERMAN.get(text, text)
     return text

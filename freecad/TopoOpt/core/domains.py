@@ -20,30 +20,30 @@ LABEL_ROLES = {label: role for role, label in ROLE_LABELS.items()}
 
 # element sets that only collect everything - of no use in the table
 # (FreeCAD writes Eall/Evolumes, Efaces, Eedges, Enodes for the whole model)
-SAMMELSETS = ("eall", "all_available", "evolumes", "efaces", "eedges", "enodes")
+COLLECTOR_SETS = ("eall", "all_available", "evolumes", "efaces", "eedges", "enodes")
 
 
-def aktive(domains):
+def active(domains):
     """The domains that take part in the optimization.
 
     "ignore" means: these elements play no role for the optimization.
     Such sets do not go into the beso configuration - then they need no
     allowable stress either and are not evaluated.
     """
-    return {name: rolle for name, rolle in (domains or {}).items() if rolle != IGNORE}
+    return {name: role for name, role in (domains or {}).items() if role != IGNORE}
 
 
-def parse_domains(werte):
+def parse_domains(values):
     """["set|design", ...] -> {"set": "design"}."""
-    ergebnis = {}
-    for eintrag in werte or []:
-        if "|" not in eintrag:
+    result = {}
+    for entry in values or []:
+        if "|" not in entry:
             continue
-        name, rolle = eintrag.split("|", 1)
+        name, role = entry.split("|", 1)
         name = name.strip()
         if name:
-            ergebnis[name] = rolle.strip()
-    return ergebnis
+            result[name] = role.strip()
+    return result
 
 
 def format_domains(domains):
@@ -51,51 +51,51 @@ def format_domains(domains):
     return ["%s|%s" % (name, domains[name]) for name in sorted(domains)]
 
 
-def parse_stress(werte):
+def parse_stress(values):
     """["set|235.0", ...] -> {"set": 235.0} (allowable stress in MPa)."""
-    ergebnis = {}
-    for eintrag in werte or []:
-        if "|" not in eintrag:
+    result = {}
+    for entry in values or []:
+        if "|" not in entry:
             continue
-        name, wert = eintrag.split("|", 1)
+        name, value = entry.split("|", 1)
         name = name.strip()
         try:
-            zahl = float(wert.strip().replace(",", "."))
+            number = float(value.strip().replace(",", "."))
         except ValueError:
             continue
-        if name and zahl > 0:
-            ergebnis[name] = zahl
-    return ergebnis
+        if name and number > 0:
+            result[name] = number
+    return result
 
 
-def format_stress(limits, aus=None):
+def format_stress(limits, blank=None):
     """{"set": 235.0} -> ["set|235.0", ...] (stable order).
 
-    ``aus`` are the sets with a **deliberately** empty field: they are stored as
+    ``blank`` are the sets with a **deliberately** empty field: they are stored as
     "<set>|0" so that the suggestion from the material does not reappear.
     """
-    ergebnis = ["%s|%r" % (name, limits[name]) for name in sorted(limits)]
-    ergebnis += ["%s|0" % name for name in sorted(set(aus or ()) - set(limits))]
-    return ergebnis
+    result = ["%s|%r" % (name, limits[name]) for name in sorted(limits)]
+    result += ["%s|0" % name for name in sorted(set(blank or ()) - set(limits))]
+    return result
 
 
-def aus_stress(werte):
+def blank_stress(values):
     """The sets stored as "<set>|0" (deliberately without stress)."""
-    ergebnis = set()
-    for eintrag in werte or []:
-        if "|" not in eintrag:
+    result = set()
+    for entry in values or []:
+        if "|" not in entry:
             continue
-        name, wert = eintrag.split("|", 1)
+        name, value = entry.split("|", 1)
         try:
-            zahl = float(wert.strip().replace(",", "."))
+            number = float(value.strip().replace(",", "."))
         except ValueError:
             continue
-        if name.strip() and zahl <= 0:
-            ergebnis.add(name.strip())
-    return ergebnis
+        if name.strip() and number <= 0:
+            result.add(name.strip())
+    return result
 
 
-def vorschlag(elsets):
+def suggestion(elsets):
     """A first suggestion for the incoming sets.
 
     Every set starts as design space - that is what a user means when a model is
@@ -103,26 +103,26 @@ def vorschlag(elsets):
     screws, ...) are set to "non-design", areas that should not take part at all to
     "ignore".  Sets that only collect everything (Eall) are not offered at all.
     """
-    vorschlaege = {}
+    suggestions = {}
     for name in elsets:
-        if name.lower() in SAMMELSETS:
+        if name.lower() in COLLECTOR_SETS:
             continue
-        vorschlaege[name] = DESIGN
-    return vorschlaege
+        suggestions[name] = DESIGN
+    return suggestions
 
 
-def rollen_fuer(elsets, gespeichert=None):
+def roles_for(elsets, stored=None):
     """The roles of the offered sets.
 
     What is stored in the object stays valid.  Everything new - for example a set
     that only appeared after a model change - is **design space**:
     "ignore" is the exception that is set deliberately.
     """
-    if not gespeichert:
-        return vorschlag(elsets)
-    return {name: gespeichert.get(name, DESIGN) for name in elsets}
+    if not stored:
+        return suggestion(elsets)
+    return {name: stored.get(name, DESIGN) for name in elsets}
 
 
-def zeige_elsets(elsets):
+def visible_elsets(elsets):
     """Sets for the table: collector sets are hidden."""
-    return {name: anzahl for name, anzahl in elsets.items() if name.lower() not in SAMMELSETS}
+    return {name: count for name, count in elsets.items() if name.lower() not in COLLECTOR_SETS}

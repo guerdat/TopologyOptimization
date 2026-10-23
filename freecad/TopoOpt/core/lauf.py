@@ -23,7 +23,7 @@ import re
 
 START = re.compile(r"initial optimization domains mass\s+([0-9.eE+-]+)")
 ITERATION = re.compile(r"new iteration number\s+(\d+)")
-MASSE = re.compile(r"^mass\s*=\s*([0-9.eE+-]+)", re.MULTILINE)
+MASS = re.compile(r"^mass\s*=\s*([0-9.eE+-]+)", re.MULTILINE)
 
 # The iteration table has a different number of columns depending on the model: the
 # header starts with "i  mass  ener_dens_mean" (or heat_flux_mean) and gets more with
@@ -31,131 +31,131 @@ MASSE = re.compile(r"^mass\s*=\s*([0-9.eE+-]+)", re.MULTILINE)
 # domain), FI_mean, FI_mean_without_state0 and FI_max per domain (also with "all").
 # Measured: 3 columns, 4 with a failure index and one domain, 8 with two domains -
 # which is why the columns are assigned through the header.
-KOPF_MERKMALE = {"mass": "mass", "ener_dens_mean": "ener", "heat_flux_mean": "ener",
-                 "FI_mean": "fi_mean", "_without_state0": "fi_mean_ohne"}
+HEADER_MARKERS = {"mass": "mass", "ener_dens_mean": "ener", "heat_flux_mean": "ener",
+                  "FI_mean": "fi_mean", "_without_state0": "fi_mean_without_state0"}
 
 
-def _kopf_positionen(zeile):
+def _header_positions(line):
     """Positions of the known columns, taken from the header row of the iteration table."""
-    tokens = zeile.split()
-    positionen = {}
-    for nummer, token in enumerate(tokens):
-        for merkmal, name in KOPF_MERKMALE.items():
-            if token == merkmal or (merkmal.startswith("FI_") and token.startswith(merkmal)):
-                positionen[name] = nummer
-    if "fi_mean" in positionen:
+    tokens = line.split()
+    positions = {}
+    for number, token in enumerate(tokens):
+        for marker, name in HEADER_MARKERS.items():
+            if token == marker or (marker.startswith("FI_") and token.startswith(marker)):
+                positions[name] = number
+    if "fi_mean" in positions:
         # the combined "all" column sits directly before FI_mean, otherwise it is the only domain
-        positionen["fi_violated"] = positionen["fi_mean"] - 1
-    if positionen.get("fi_mean"):
+        positions["fi_violated"] = positions["fi_mean"] - 1
+    if positions.get("fi_mean"):
         # FI_max: the last column of the table is "all" (or the only domain)
-        positionen["fi_max"] = len(tokens) - 1
-    return positionen
+        positions["fi_max"] = len(tokens) - 1
+    return positions
 
 
-def tabelle_lesen(beso_log):
+def read_table(beso_log):
     """The iteration table from beso's log file.
 
     Returns [(iteration, {"mass":…, "ener":…, "fi_violated":…, "fi_mean":…, "fi_max":…}), …]
     in the order of the file; an empty list when the file does not exist.
     """
-    ergebnis = []
+    result = []
     if not beso_log or not os.path.isfile(beso_log):
-        return ergebnis
-    positionen = {}
+        return result
+    positions = {}
     try:
         with open(beso_log, encoding="utf8", errors="replace") as fh:
-            for zeile in fh:
-                if "mass" in zeile and ("ener_dens_mean" in zeile or "heat_flux_mean" in zeile):
-                    positionen = _kopf_positionen(zeile)
+            for line in fh:
+                if "mass" in line and ("ener_dens_mean" in line or "heat_flux_mean" in line):
+                    positions = _header_positions(line)
                     continue
-                if not positionen:
+                if not positions:
                     continue
-                felder = zeile.split()
-                if len(felder) <= max(positionen.values()):
+                fields = line.split()
+                if len(fields) <= max(positions.values()):
                     continue
-                if not felder[0].isdigit():
+                if not fields[0].isdigit():
                     continue
                 try:
-                    werte = {"mass": float(felder[positionen["mass"]]),
-                             "ener": float(felder[positionen["ener"]])}
-                    for name in ("fi_violated", "fi_mean", "fi_mean_ohne", "fi_max"):
-                        if name in positionen:
-                            werte[name] = float(felder[positionen[name]])
-                    if "fi_violated" in werte:
-                        werte["fi_violated"] = int(werte["fi_violated"])
+                    values = {"mass": float(fields[positions["mass"]]),
+                              "ener": float(fields[positions["ener"]])}
+                    for name in ("fi_violated", "fi_mean", "fi_mean_without_state0", "fi_max"):
+                        if name in positions:
+                            values[name] = float(fields[positions[name]])
+                    if "fi_violated" in values:
+                        values["fi_violated"] = int(values["fi_violated"])
                 except (TypeError, ValueError, IndexError):
                     continue
-                ergebnis.append((int(felder[0]), werte))
+                result.append((int(fields[0]), values))
     except OSError:
         return []
-    return ergebnis
+    return result
 
 
-def fortschritt(beso_log, ziel_anteil=None):
+def progress(beso_log, target_ratio=None):
     """What the table says about the run.
 
-    Returns a dict with ``start`` (mass of iteration 0), ``ziel`` (when
-    ``ziel_anteil`` is given), ``iteration``, ``masse``, ``massen`` [(i, mass), …] and
-    ``werte`` (the whole table for the charts).
+    Returns a dict with ``start`` (mass of iteration 0), ``target`` (when
+    ``target_ratio`` is given), ``iteration``, ``mass``, ``masses`` [(i, mass), …] and
+    ``values`` (the whole table for the charts).
     """
-    tabelle = tabelle_lesen(beso_log)
-    ergebnis = {"start": None, "ziel": None, "iteration": 0, "masse": None, "massen": [],
-                "werte": tabelle}
-    if not tabelle:
-        return ergebnis
-    ergebnis["start"] = tabelle[0][1].get("mass")
-    ergebnis["iteration"] = tabelle[-1][0]
-    ergebnis["masse"] = tabelle[-1][1].get("mass")
-    ergebnis["massen"] = [(i, werte.get("mass")) for i, werte in tabelle]
-    if ergebnis["start"] and ziel_anteil:
-        ergebnis["ziel"] = ergebnis["start"] * float(ziel_anteil)
-    return ergebnis
+    table = read_table(beso_log)
+    result = {"start": None, "target": None, "iteration": 0, "mass": None, "masses": [],
+              "values": table}
+    if not table:
+        return result
+    result["start"] = table[0][1].get("mass")
+    result["iteration"] = table[-1][0]
+    result["mass"] = table[-1][1].get("mass")
+    result["masses"] = [(i, values.get("mass")) for i, values in table]
+    if result["start"] and target_ratio:
+        result["target"] = result["start"] * float(target_ratio)
+    return result
 
 
-def anteil(start, masse, ziel_anteil):
+def ratio(start, mass, target_ratio):
     """How far the run has come, in percent (0 = start mass, 100 = target mass)."""
-    if not start or not masse:
+    if not start or not mass:
         return 0.0
-    ziel = min(max(float(ziel_anteil or 0.0), 0.01), 0.99)
-    return max(0.0, min(100.0, (start - masse) / (start * (1.0 - ziel)) * 100.0))
+    target = min(max(float(target_ratio or 0.0), 0.01), 0.99)
+    return max(0.0, min(100.0, (start - mass) / (start * (1.0 - target)) * 100.0))
 
 
-def verlauf_lesen(log_pfad, ziel_anteil=None):
+def read_history(log_path, target_ratio=None):
     """Our own protocol (<mesh>_topoopt.log) for the details field.
 
-    Returns a dict with ``text`` (whole file), ``iteration``, ``massen`` and ``fertig``.
+    Returns a dict with ``text`` (whole file), ``iteration``, ``masses`` and ``done``.
     """
-    ergebnis = {"text": "", "iteration": 0, "massen": [], "fertig": False,
-                "start": None, "ziel": None}
-    if not log_pfad or not os.path.isfile(log_pfad):
-        return ergebnis
+    result = {"text": "", "iteration": 0, "masses": [], "done": False,
+              "start": None, "target": None}
+    if not log_path or not os.path.isfile(log_path):
+        return result
     try:
-        with open(log_pfad, encoding="utf8", errors="replace") as fh:
+        with open(log_path, encoding="utf8", errors="replace") as fh:
             text = fh.read()
     except OSError:
-        return ergebnis
-    ergebnis["text"] = text
+        return result
+    result["text"] = text
     start = START.search(text)
     if start:
         try:
-            ergebnis["start"] = float(start.group(1))
-            if ziel_anteil:
-                ergebnis["ziel"] = ergebnis["start"] * float(ziel_anteil)
+            result["start"] = float(start.group(1))
+            if target_ratio:
+                result["target"] = result["start"] * float(target_ratio)
         except ValueError:
             pass
-    laufende = 0
-    for zeile in text.splitlines():
-        nummer = ITERATION.search(zeile)
-        if nummer:
-            laufende = int(nummer.group(1))
-            ergebnis["iteration"] = max(ergebnis["iteration"], laufende)
+    running = 0
+    for line in text.splitlines():
+        number = ITERATION.search(line)
+        if number:
+            running = int(number.group(1))
+            result["iteration"] = max(result["iteration"], running)
             continue
-        masse = MASSE.match(zeile.strip())
-        if masse and laufende:
+        mass = MASS.match(line.strip())
+        if mass and running:
             try:
-                ergebnis["massen"].append((laufende, float(masse.group(1))))
+                result["masses"].append((running, float(mass.group(1))))
             except ValueError:
                 continue
     if "Job finished" in text:
-        ergebnis["fertig"] = True
-    return ergebnis
+        result["done"] = True
+    return result

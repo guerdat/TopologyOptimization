@@ -13,7 +13,7 @@ The values in a material card come as text with a unit ("315 MPa",
 import re
 
 # factor to MPa
-EINHEITEN = {
+UNITS = {
     "gpa": 1000.0,
     "mpa": 1.0,
     "n/mm^2": 1.0,
@@ -26,43 +26,43 @@ EINHEITEN = {
     "pa": 1e-6,
 }
 
-ZAHL = re.compile(r"^\s*([-+0-9.eE,]+)\s*([A-Za-z0-9/().^*² ]*)\s*$")
+NUMBER = re.compile(r"^\s*([-+0-9.eE,]+)\s*([A-Za-z0-9/().^*² ]*)\s*$")
 
 # keys that may contain a yield strength (order = priority)
-SCHLUESSEL = ("YieldStrength", "UltimateTensileStrength", "CompressiveStrength")
+KEYS = ("YieldStrength", "UltimateTensileStrength", "CompressiveStrength")
 
 
-def MPa(wert):
+def MPa(value):
     """Convert a material value to MPa - or None when it is unusable."""
-    if isinstance(wert, (int, float)):
-        return float(wert) or None
-    if not isinstance(wert, str):
+    if isinstance(value, (int, float)):
+        return float(value) or None
+    if not isinstance(value, str):
         return None
-    treffer = ZAHL.match(wert.replace(",", "."))
-    if not treffer:
+    match = NUMBER.match(value.replace(",", "."))
+    if not match:
         return None
     try:
-        zahl = float(treffer.group(1))
+        number = float(match.group(1))
     except ValueError:
         return None
-    einheit = treffer.group(2).strip().lower().replace(" ", "")
-    faktor = EINHEITEN.get(einheit)
-    if faktor is None:
-        if not einheit:
-            faktor = 1.0                 # no unit: read as MPa
+    unit = match.group(2).strip().lower().replace(" ", "")
+    factor = UNITS.get(unit)
+    if factor is None:
+        if not unit:
+            factor = 1.0                 # no unit: read as MPa
         else:
             return None                  # unknown unit - better suggest nothing
-    ergebnis = zahl * faktor
-    return ergebnis if ergebnis > 0 else None
+    result = number * factor
+    return result if result > 0 else None
 
 
-def streckgrenze(materialien, elsets, aus_inp=None):
+def yield_strength(materials, elsets, from_inp=None):
     """What the material of the element sets yields.
 
-    ``materialien`` is a list of ``(name, values dict)`` (see
-    ``materialien_finden``), ``elsets`` the set of element sets.
+    ``materials`` is a list of ``(name, values dict)`` (see
+    ``find_materials``), ``elsets`` the set of element sets.
 
-    The mapping is made first through ``aus_inp`` - the assignment set -> material
+    The mapping is made first through ``from_inp`` - the assignment set -> material
     name that FreeCAD writes into the input file (``*SOLID SECTION, ELSET=...,
     MATERIAL=...``, see ``elsets.read_section_materials``).  That is the truth:
     CalculiX computes with exactly this material.  Only when the input file has
@@ -72,81 +72,81 @@ def streckgrenze(materialien, elsets, aus_inp=None):
 
     Returns {"<elset>": MPa}
     """
-    ergebnis = {}
-    eintraege = [(name, werte) for name, werte in materialien if isinstance(werte, dict)]
+    result = {}
+    entries = [(name, values) for name, values in materials if isinstance(values, dict)]
     for elset in elsets:
-        passend = None
-        name_in_inp = (aus_inp or {}).get(elset)
+        matching = None
+        name_in_inp = (from_inp or {}).get(elset)
         if name_in_inp:
-            for name, werte in eintraege:
+            for name, values in entries:
                 if name == name_in_inp:
-                    passend = werte
+                    matching = values
                     break
-        if passend is None:
-            for name, werte in eintraege:
+        if matching is None:
+            for name, values in entries:
                 if name and elset.lower().startswith(name.lower()):
-                    passend = werte
+                    matching = values
                     break
-        if passend is None and len(eintraege) == 1:
-            passend = eintraege[0][1]
-        if passend is None:
+        if matching is None and len(entries) == 1:
+            matching = entries[0][1]
+        if matching is None:
             continue
-        for schluessel in SCHLUESSEL:
-            if schluessel in passend:
-                wert = MPa(passend[schluessel])
-                if wert:
-                    ergebnis[elset] = wert
+        for key in KEYS:
+            if key in matching:
+                value = MPa(matching[key])
+                if value:
+                    result[elset] = value
                     break
-    return ergebnis
+    return result
 
 
-def fehlende_werte(materialien):
+def missing_values(materials):
     """Which material values that CalculiX needs for computing are missing.
 
-    ``materialien`` is a list of ``(name, values dict)`` (see
-    ``materialien_finden``).  FreeCAD's input file writer aborts without a
+    ``materials`` is a list of ``(name, values dict)`` (see
+    ``find_materials``).  FreeCAD's input file writer aborts without a
     Young's modulus with a bare ``KeyError: 'YoungsModulus'`` and leaves a
     half-finished ``.inp`` behind.  So that this stands out beforehand, this
     function reports per material what is missing.
 
     Returns ``{"<material name>": ["YoungsModulus", ...]}``
     """
-    fehlt = {}
-    for name, werte in materialien:
-        if not isinstance(werte, dict):
+    missing = {}
+    for name, values in materials:
+        if not isinstance(values, dict):
             continue
-        offen = [schluessel for schluessel in ("YoungsModulus", "PoissonRatio")
-                 if schluessel not in werte]
-        if offen:
-            fehlt[name] = offen
-    return fehlt
+        missing_keys = [key for key in ("YoungsModulus", "PoissonRatio")
+                        if key not in values]
+        if missing_keys:
+            missing[name] = missing_keys
+    return missing
 
 
-def materialien_finden(analyse):
+def find_materials(analysis):
     """The material objects of the model as [(name, values dict), ...].
 
     Searches in the analysis and - if necessary - in the whole document (FreeCAD
     places material objects next to the analysis).  Without an analysis the active
     document is taken, so the suggestion also works without a selected analysis.
     """
-    ergebnis = []
-    kandidaten = []
-    if analyse is not None:
-        for kind in getattr(analyse, "Group", []) or []:
-            kandidaten.append(kind)
+    result = []
+    candidates = []
+    if analysis is not None:
+        for member in getattr(analysis, "Group", []) or []:
+            candidates.append(member)
     try:
         import FreeCAD as App
-        doc = getattr(analyse, "Document", None) or getattr(App, "ActiveDocument", None)
+        doc = getattr(analysis, "Document", None) or getattr(App, "ActiveDocument", None)
         if doc is not None:
             for obj in doc.Objects:
-                if obj not in kandidaten:
-                    kandidaten.append(obj)
+                if obj not in candidates:
+                    candidates.append(obj)
     except Exception:
         pass
-    for obj in kandidaten:
+    for obj in candidates:
         if not str(getattr(obj, "TypeId", "")).startswith("App::MaterialObject"):
             continue
-        werte = getattr(obj, "Material", None)
-        if isinstance(werte, dict):
-            ergebnis.append((obj.Name, werte))
-    return ergebnis
+        values = getattr(obj, "Material", None)
+        if isinstance(values, dict):
+            result.append((obj.Name, values))
+    return result

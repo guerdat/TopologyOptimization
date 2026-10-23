@@ -618,7 +618,7 @@ try:
         pruefe("von" in panel2.ergebnis_info.text() or "of" in panel2.ergebnis_info.text(),
                "die Info nennt auch die Gesamtzahl")
     from freecad.TopoOpt.core import netz as netz_modul
-    state1 = netz_modul.neueste_state1(panel2.obj.WorkingDir)
+    state1 = netz_modul.latest_state1(panel2.obj.WorkingDir)
     pruefe(bool(state1), "die Zustandsdatei der letzten Iteration wird gefunden (%s)"
            % os.path.basename(state1 or "-"))
     vorher_objekte = len(panel2.obj.Document.Objects)

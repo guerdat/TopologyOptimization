@@ -18,95 +18,95 @@ be resolved - otherwise `MaterialSolidSolid` looks like a one-element set.
 import os
 import re
 
-KURZFORM = re.compile(r"^\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*$")
-ATTRIBUT = re.compile(r"([A-Za-z_]+)\s*=\s*\"?([^,\"]+)\"?")
+SHORT_FORM = re.compile(r"^\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*$")
+ATTRIBUTE = re.compile(r"([A-Za-z_]+)\s*=\s*\"?([^,\"]+)\"?")
 
 
-def _attribute(zeile):
+def _attribute(line):
     """All KEY=VALUE attributes of a card line, keys in upper case."""
-    ergebnis = {}
-    for schluessel, wert in ATTRIBUT.findall(zeile):
-        ergebnis[schluessel.strip().upper()] = wert.strip()
-    return ergebnis
+    result = {}
+    for key, value in ATTRIBUTE.findall(line):
+        result[key.strip().upper()] = value.strip()
+    return result
 
 
-def _ist_zahl(text):
+def _is_number(text):
     return text.lstrip("-").isdigit()
 
 
-def _rohdaten(inp_path):
+def _raw_data(inp_path):
     """{set name: (number of own elements, [referenced set names])}."""
-    roh = {}
+    raw = {}
     if not inp_path or not os.path.isfile(inp_path):
-        return roh
+        return raw
 
-    aktuell = None
-    modus = None          # "elemente" (from *ELEMENT) or "elset" (from *ELSET)
+    current = None
+    mode = None          # "elemente" (from *ELEMENT) or "elset" (from *ELSET)
     generate = False
     try:
         with open(inp_path, "r", encoding="utf8", errors="ignore") as fh:
-            for zeile in fh:
-                zu = zeile.strip()
-                if zu.startswith("*"):
-                    art = zu.upper()
-                    attrs = _attribute(zu)
-                    if art.startswith("*ELEMENT"):
-                        aktuell, modus, generate = attrs.get("ELSET"), "elemente", False
-                    elif art.startswith("*ELSET"):
-                        aktuell, modus = attrs.get("ELSET"), "elset"
-                        generate = "GENERATE" in art
+            for line in fh:
+                stripped = line.strip()
+                if stripped.startswith("*"):
+                    kind = stripped.upper()
+                    attrs = _attribute(stripped)
+                    if kind.startswith("*ELEMENT"):
+                        current, mode, generate = attrs.get("ELSET"), "elemente", False
+                    elif kind.startswith("*ELSET"):
+                        current, mode = attrs.get("ELSET"), "elset"
+                        generate = "GENERATE" in kind
                     else:
-                        aktuell, modus, generate = None, None, False
-                    if aktuell:
-                        roh.setdefault(aktuell, [0, []])
+                        current, mode, generate = None, None, False
+                    if current:
+                        raw.setdefault(current, [0, []])
                     continue
-                if not aktuell or not zu:
+                if not current or not stripped:
                     continue
-                if modus == "elemente":
-                    if _ist_zahl(zu.split(",")[0].strip()):
-                        roh[aktuell][0] += 1
+                if mode == "elemente":
+                    if _is_number(stripped.split(",")[0].strip()):
+                        raw[current][0] += 1
                     continue
                 if generate:
-                    treffer = KURZFORM.match(zu)
-                    if treffer:
-                        start, ende, schritt = (int(g) for g in treffer.groups())
-                        if schritt:
-                            roh[aktuell][0] += max(0, (ende - start) // schritt + 1)
+                    match = SHORT_FORM.match(stripped)
+                    if match:
+                        start, end, step = (int(g) for g in match.groups())
+                        if step:
+                            raw[current][0] += max(0, (end - start) // step + 1)
                     continue
                 # normal notation: element numbers (up to 16 per line) or
                 # a reference to another set name
-                for teil in (t.strip() for t in zu.split(",")):
-                    if not teil:
+                for part in (t.strip() for t in stripped.split(",")):
+                    if not part:
                         continue
-                    if _ist_zahl(teil):
-                        roh[aktuell][0] += 1
-                    elif teil not in roh[aktuell][1]:
-                        roh[aktuell][1].append(teil)
+                    if _is_number(part):
+                        raw[current][0] += 1
+                    elif part not in raw[current][1]:
+                        raw[current][1].append(part)
     except OSError:
         return {}
-    return {name: (anzahl, verweise) for name, (anzahl, verweise) in roh.items()}
+    return {name: (count, refs) for name, (count, refs) in raw.items()}
 
 
 def read_elsets(inp_path):
     """Element sets of an .inp as {name: number of elements} (references resolved)."""
-    roh = _rohdaten(inp_path)
-    ergebnis = {}
+    raw = _raw_data(inp_path)
+    result = {}
 
-    def aufloesen(name, gesehen):
-        if name in ergebnis:
-            return ergebnis[name]
-        if name not in roh or name in gesehen:      # cycle or unknown
+    def resolve(name, seen):
+        if name in result:
+            return result[name]
+        if name not in raw or name in seen:      # cycle or unknown
             return 0
-        gesehen = gesehen | {name}
-        anzahl, verweise = roh[name]
-        for ziel in verweise:
-            anzahl += aufloesen(ziel, gesehen)
-        ergebnis[name] = anzahl
-        return anzahl
+        seen = seen | {name}
+        count, refs = raw[name]
+        for target in refs:
+            count += resolve(target, seen)
+        result[name] = count
+        return count
 
-    for name in roh:
-        aufloesen(name, set())
-    return ergebnis
+    for name in raw:
+        resolve(name, set())
+    return result
 
 
 def read_shell_thicknesses(inp_path):
@@ -121,34 +121,34 @@ def read_shell_thicknesses(inp_path):
     model has several thicknesses (then there are several cards) - nothing has to be
     guessed.  A volume model has no such card; the result is empty then.
     """
-    dicken = {}
+    thicknesses = {}
     if not inp_path or not os.path.isfile(inp_path):
-        return dicken
-    aktuell = None
-    fehlt_noch = False
+        return thicknesses
+    current = None
+    pending = False
     try:
         with open(inp_path, "r", encoding="utf8", errors="ignore") as fh:
-            for zeile in fh:
-                zu = zeile.strip()
-                if zu.startswith("*"):
-                    attrs = _attribute(zu)
-                    if zu.upper().startswith("*SHELL SECTION") and attrs.get("ELSET"):
-                        aktuell = attrs["ELSET"]
-                        fehlt_noch = True
+            for line in fh:
+                stripped = line.strip()
+                if stripped.startswith("*"):
+                    attrs = _attribute(stripped)
+                    if stripped.upper().startswith("*SHELL SECTION") and attrs.get("ELSET"):
+                        current = attrs["ELSET"]
+                        pending = True
                         continue
-                    aktuell, fehlt_noch = None, False
+                    current, pending = None, False
                     continue
-                if not zu or not fehlt_noch or aktuell is None:
+                if not stripped or not pending or current is None:
                     continue
                 # the first number on the card is the thickness
                 try:
-                    dicken[aktuell] = float(zu.split(",")[0].strip())
+                    thicknesses[current] = float(stripped.split(",")[0].strip())
                 except ValueError:
                     pass
-                fehlt_noch = False
+                pending = False
     except OSError:
         return {}
-    return dicken
+    return thicknesses
 
 
 def read_section_materials(inp_path):
@@ -162,27 +162,27 @@ def read_section_materials(inp_path):
     when a model contains several materials.  It is therefore the truth and not
     the name of the set (which only *looks* like the material).
     """
-    zuordnung = {}
+    assignment = {}
     if not inp_path or not os.path.isfile(inp_path):
-        return zuordnung
+        return assignment
     try:
         with open(inp_path, "r", encoding="utf8", errors="ignore") as fh:
-            for zeile in fh:
-                zu = zeile.strip()
-                if not zu.startswith("*"):
+            for line in fh:
+                stripped = line.strip()
+                if not stripped.startswith("*"):
                     continue
-                hoch = zu.upper()
-                if not (hoch.startswith("*SOLID SECTION") or hoch.startswith("*SHELL SECTION")):
+                upper_line = stripped.upper()
+                if not (upper_line.startswith("*SOLID SECTION") or upper_line.startswith("*SHELL SECTION")):
                     continue
-                attrs = _attribute(zu)
+                attrs = _attribute(stripped)
                 if attrs.get("ELSET") and attrs.get("MATERIAL"):
-                    zuordnung[attrs["ELSET"]] = attrs["MATERIAL"]
+                    assignment[attrs["ELSET"]] = attrs["MATERIAL"]
     except OSError:
         return {}
-    return zuordnung
+    return assignment
 
 
-def pruefe_inp(inp_path, sets=None):
+def check_inp(inp_path, sets=None):
     """Is the input file complete - and does every element set have a material?
 
     A file that was interrupted in the middle of writing does not always stand
@@ -196,59 +196,59 @@ def pruefe_inp(inp_path, sets=None):
     set belongs to no body-material assignment (typical: a material was placed
     on surfaces) and CalculiX leaves the elements out.
 
-    Returns ``{"vorhanden": bool, "fehlende_karten": [card, ...],
-    "ohne_material": [set, ...]}``
+    Returns ``{"present": bool, "missing_cards": [card, ...],
+    "without_material": [set, ...]}``
     """
-    ergebnis = {"vorhanden": False, "fehlende_karten": [], "ohne_material": []}
+    result = {"present": False, "missing_cards": [], "without_material": []}
     if not inp_path or not os.path.isfile(inp_path):
-        return ergebnis
-    ergebnis["vorhanden"] = True
-    karten = {"*STEP": False, "*MATERIAL": False}
+        return result
+    result["present"] = True
+    cards = {"*STEP": False, "*MATERIAL": False}
     section_sets = set()
     try:
         with open(inp_path, "r", encoding="utf8", errors="ignore") as fh:
-            for zeile in fh:
-                if not zeile.startswith("*"):
+            for line in fh:
+                if not line.startswith("*"):
                     continue
-                hoch = zeile.strip().upper()
-                for name in karten:
-                    if hoch.startswith(name):
-                        karten[name] = True
-                if hoch.startswith("*SOLID SECTION") or hoch.startswith("*SHELL SECTION"):
-                    elset = _attribute(zeile).get("ELSET")
+                upper_line = line.strip().upper()
+                for name in cards:
+                    if upper_line.startswith(name):
+                        cards[name] = True
+                if upper_line.startswith("*SOLID SECTION") or upper_line.startswith("*SHELL SECTION"):
+                    elset = _attribute(line).get("ELSET")
                     if elset:
                         section_sets.add(elset)
     except OSError:
-        return ergebnis
+        return result
     # *MATERIAL and *STEP stand in the second half: if one is missing, the file was
     # interrupted while writing (boundary conditions are deliberately NOT checked -
     # a model can also be written without them)
-    ergebnis["fehlende_karten"] = [name for name in ("*MATERIAL", "*STEP")
-                                   if not karten[name]]
+    result["missing_cards"] = [name for name in ("*MATERIAL", "*STEP")
+                               if not cards[name]]
     if sets:
-        ergebnis["ohne_material"] = sorted(name for name in sets if name not in section_sets)
-    return ergebnis
+        result["without_material"] = sorted(name for name in sets if name not in section_sets)
+    return result
 
 
-def gesamt_elemente(inp_path):
+def total_elements(inp_path):
     """Number of elements in the mesh (from the *ELEMENT cards)."""
-    roh = _rohdaten(inp_path)
-    return max([anzahl for anzahl, _ in roh.values()] or [0])
+    raw = _raw_data(inp_path)
+    return max([count for count, _ in raw.values()] or [0])
 
 
 def element_types(inp_path):
     """Set of element types from the *ELEMENT cards, e. g. ["C3D10"]."""
-    typen = []
+    types = []
     if not inp_path or not os.path.isfile(inp_path):
-        return typen
+        return types
     try:
         with open(inp_path, "r", encoding="utf8", errors="ignore") as fh:
-            for zeile in fh:
-                if not zeile.lstrip().upper().startswith("*ELEMENT"):
+            for line in fh:
+                if not line.lstrip().upper().startswith("*ELEMENT"):
                     continue
-                typ = _attribute(zeile).get("TYPE", "").upper()
-                if typ and typ not in typen:
-                    typen.append(typ)
+                element_type = _attribute(line).get("TYPE", "").upper()
+                if element_type and element_type not in types:
+                    types.append(element_type)
     except OSError:
         pass
-    return typen
+    return types

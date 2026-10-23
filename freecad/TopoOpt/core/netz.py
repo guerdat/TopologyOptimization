@@ -18,40 +18,40 @@ only serves for looking at it (and for the iteration movie).
 import os
 
 # state file of an iteration ("file001_state1.inp")
-ENDUNG = "_state1.inp"
+SUFFIX = "_state1.inp"
 
 
-def neueste_state1(ordner):
+def latest_state1(folder):
     """The state file written last in the working directory.
 
     Sorted by modification time, not alphabetically: alphabetically the
     highest iteration number **of an earlier** run would be the "last" one.
     Returns the path or "".
     """
-    if not ordner or not os.path.isdir(ordner):
+    if not folder or not os.path.isdir(folder):
         return ""
-    kandidaten = [name for name in os.listdir(ordner) if name.endswith(ENDUNG)]
-    if not kandidaten:
+    candidates = [name for name in os.listdir(folder) if name.endswith(SUFFIX)]
+    if not candidates:
         return ""
-    kandidaten.sort(key=lambda name: os.path.getmtime(os.path.join(ordner, name)))
-    return os.path.join(ordner, kandidaten[-1])
+    candidates.sort(key=lambda name: os.path.getmtime(os.path.join(folder, name)))
+    return os.path.join(folder, candidates[-1])
 
 
-def laden(pfad, dokument=None):
+def load(path, document=None):
     """Put the mesh from a state file into the document as a mesh object.
 
     A missing importer is passed on as a clear message - without the FEM module
     FreeCAD cannot read the file.
     """
-    if not pfad or not os.path.isfile(pfad):
-        raise ValueError("Datei nicht gefunden: %s" % (pfad or "-"))
+    if not path or not os.path.isfile(path):
+        raise ValueError("Datei nicht gefunden: %s" % (path or "-"))
     try:
         import femimport                      # noqa: F401  (loads the importer)
     except Exception:
         pass
     from feminout import importInpMesh
-    if dokument is not None:
+    if document is not None:
         import FreeCADGui
-        FreeCADGui.ActiveDocument = FreeCADGui.getDocument(dokument.Name)
-    importInpMesh.import_inp(pfad)
-    return pfad
+        FreeCADGui.ActiveDocument = FreeCADGui.getDocument(document.Name)
+    importInpMesh.import_inp(path)
+    return path

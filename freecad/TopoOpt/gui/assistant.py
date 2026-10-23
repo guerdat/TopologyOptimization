@@ -587,12 +587,12 @@ class AssistantPanel:
                 design = [name for name, rolle in self.domains.items() if rolle == dom.DESIGN]
                 if design:
                     alle = list(self.elsets) or design
-                    daten = radius_modul.gelesen(self.obj.InpFile, alle, design)
+                    daten = radius_modul.read_data(self.obj.InpFile, alle, design)
             self._robust_daten = daten
         if not self._robust_daten:
             return {}
         ergebnis = radius_modul.robust(self._robust_daten)
-        ergebnis["mittel"] = self._robust_daten["mittel"]
+        ergebnis["mean"] = self._robust_daten["mean"]
         return ergebnis
 
     def _pruefe_radius(self, zeile):
@@ -615,12 +615,12 @@ class AssistantPanel:
                                % exc, "fehler")
         if self._robust_ergebnis:
             self.obj.RobusterRadius = self._robust_ergebnis["radius"]
-            self.obj.MittlereGroesse = self._robust_ergebnis["mittel"]
+            self.obj.MittlereGroesse = self._robust_ergebnis["mean"]
             self._setze_status(translate("Robust filter radius: %.3f mm = %.1f x mean "
                                           "element size, %d element(s) without a neighbour.")
                                % (self._robust_ergebnis["radius"],
-                                  self._robust_ergebnis["faktor"],
-                                  self._robust_ergebnis["ohne_nachbarn"]), "ok")
+                                  self._robust_ergebnis["factor"],
+                                  self._robust_ergebnis["without_neighbours"]), "ok")
         else:
             self._setze_status(translate("The robust radius needs an input file and a "
                                           "design space - check step 1."), "fehler")
@@ -638,8 +638,8 @@ class AssistantPanel:
         self._radius_text(zeile, "%.3f mm" % self._robust_ergebnis["radius"], FARBE_OK,
                           translate("%.3f mm = %.1f x mean size, %d without neighbour")
                           % (self._robust_ergebnis["radius"],
-                             self._robust_ergebnis["faktor"],
-                             self._robust_ergebnis["ohne_nachbarn"]))
+                             self._robust_ergebnis["factor"],
+                             self._robust_ergebnis["without_neighbours"]))
 
     def _sammle_filter(self):
         """The filters from the widgets, in the form beso uses."""
@@ -899,13 +899,13 @@ class AssistantPanel:
         FreeCAD's own FEM import - to keep working with, not just to look at.
         """
         ordner = getattr(self.obj, "WorkingDir", "")
-        datei = netz_modul.neueste_state1(ordner)
+        datei = netz_modul.latest_state1(ordner)
         if not datei:
             self.ergebnis_info.setText(translate("No state file (_state1.inp) in the working "
                                                  "directory yet."))
             return ""
         try:
-            netz_modul.laden(datei, self.obj.Document)
+            netz_modul.load(datei, self.obj.Document)
         except Exception as exc:
             self.ergebnis_info.setText(translate("The result network could not be loaded: %s")
                                        % exc)
@@ -949,15 +949,15 @@ class AssistantPanel:
         if self.spieler is None:
             return
         daten = self.spieler.zeigen(nummer)
-        if self.ergebnis_slider.value() != daten["nummer"]:
+        if self.ergebnis_slider.value() != daten["number"]:
             self.ergebnis_slider.blockSignals(True)
-            self.ergebnis_slider.setValue(daten["nummer"])
+            self.ergebnis_slider.setValue(daten["number"])
             self.ergebnis_slider.blockSignals(False)
         self.ergebnis_info.setText(
             translate("Iteration %d of %d | %s of %s elements left (%.1f %%)")
-            % (daten["nummer"], daten["anzahl"],
-               "{:,}".format(daten["zellen"]).replace(",", "."),
-               "{:,}".format(daten["gesamt"]).replace(",", "."), daten["prozent"]))
+            % (daten["number"], daten["count"],
+               "{:,}".format(daten["cells"]).replace(",", "."),
+               "{:,}".format(daten["total"]).replace(",", "."), daten["percent"]))
 
     def _ergebnis_schritt(self, richtung, vom_timer=False):
         """One iteration forward or back."""
@@ -1003,7 +1003,7 @@ class AssistantPanel:
             return self._lauf_log
         inp = getattr(self.obj, "InpFile", "")
         if inp:
-            pfad = conf_modul.log_pfad(inp)
+            pfad = conf_modul.log_path(inp)
             if os.path.isfile(pfad):
                 return pfad
         return ""
@@ -1053,9 +1053,9 @@ class AssistantPanel:
             self._setze_status(translate("No design space is marked - see step 1."), "fehler")
             return
         try:
-            prozess, log, conf = conf_modul.starte(self.obj, self.obj.InpFile, domains,
-                                                   self.obj.WorkingDir or
-                                                   os.path.dirname(self.obj.InpFile))
+            prozess, log, conf = conf_modul.start(self.obj, self.obj.InpFile, domains,
+                                                  self.obj.WorkingDir or
+                                                  os.path.dirname(self.obj.InpFile))
         except Exception as exc:
             # translate the error message too - it comes from the core
             self._setze_status(translate("The run could not be started: %s")
@@ -1063,7 +1063,7 @@ class AssistantPanel:
             return
         self._lauf_prozess = prozess
         self._lauf_log = log
-        self._lauf_beso_log = conf_modul.beso_log_pfad(self.obj.InpFile)
+        self._lauf_beso_log = conf_modul.beso_log_path(self.obj.InpFile)
         self._lauf_beginn = time.time()
         self.verlauf.zielmasse = getattr(self.obj, "MassGoalRatio", None)
         self.verlauf.zuruecksetzen()
@@ -1102,22 +1102,22 @@ class AssistantPanel:
         if not self._lauf_log:
             return
         # the values are in beso's own table, the last lines in our log
-        daten = logdatei.fortschritt(self._lauf_beso_log,
-                                     getattr(self.obj, "MassGoalRatio", None))
-        self.verlauf.setze_werte(daten["werte"])
+        daten = logdatei.progress(self._lauf_beso_log,
+                                  getattr(self.obj, "MassGoalRatio", None))
+        self.verlauf.setze_werte(daten["values"])
         self.verlauf.zeichne()
         laeuft = self._lauf_prozess is not None and self._lauf_prozess.poll() is None
 
-        self.balken.setValue(int(logdatei.anteil(daten["start"], daten["masse"],
-                                                 getattr(self.obj, "MassGoalRatio", None))))
+        self.balken.setValue(int(logdatei.ratio(daten["start"], daten["mass"],
+                                                getattr(self.obj, "MassGoalRatio", None))))
         teile = []
-        if daten["masse"] is not None:
+        if daten["mass"] is not None:
             teile.append(translate("Iteration %d") % daten["iteration"])
-            if daten["ziel"]:
+            if daten["target"]:
                 teile.append(translate("mass %.0f, target %.0f")
-                             % (daten["masse"], daten["ziel"]))
+                             % (daten["mass"], daten["target"]))
             else:
-                teile.append(translate("mass %.0f") % daten["masse"])
+                teile.append(translate("mass %.0f") % daten["mass"])
         elif laeuft:
             teile.append(translate("CalculiX is running ..."))
         if self._lauf_beginn:
@@ -1146,7 +1146,7 @@ class AssistantPanel:
             self.knopf_lauf.setToolTip(translate("Writes the beso configuration and starts beso "
                                                  "as its own process - FreeCAD stays usable."))
             code = self._lauf_prozess.returncode if self._lauf_prozess else None
-            fertig = logdatei.verlauf_lesen(self._lauf_log)["fertig"]
+            fertig = logdatei.read_history(self._lauf_log)["done"]
             if code == 0 and fertig:
                 self._setze_status(translate("Optimization finished after %d iteration(s).")
                                    % daten["iteration"], "ok")
@@ -1168,7 +1168,7 @@ class AssistantPanel:
         """Write the last lines of our own protocol into the detail field."""
         if not self._lauf_log:
             return
-        text = logdatei.verlauf_lesen(self._lauf_log)["text"]
+        text = logdatei.read_history(self._lauf_log)["text"]
         self.detail.setPlainText("\n".join(text.splitlines()[-40:]))
         leiste = self.detail.verticalScrollBar()
         leiste.setValue(leiste.maximum())
@@ -1225,18 +1225,18 @@ class AssistantPanel:
         """
         if not hasattr(self, "hinweis_inp"):
             return
-        ergebnis = elset_reader.pruefe_inp(getattr(self.obj, "InpFile", ""), sorted(self.elsets))
+        ergebnis = elset_reader.check_inp(getattr(self.obj, "InpFile", ""), sorted(self.elsets))
         teile = []
-        if ergebnis["fehlende_karten"]:
+        if ergebnis["missing_cards"]:
             teile.append(translate("The input file is incomplete (%s missing) - write it again.")
-                         % ", ".join(ergebnis["fehlende_karten"]))
-        if ergebnis["ohne_material"]:
+                         % ", ".join(ergebnis["missing_cards"]))
+        if ergebnis["without_material"]:
             teile.append(translate("CalculiX has no material for these element sets (no section "
                                     "card): %s - their elements are left out of the calculation.")
-                         % ", ".join(ergebnis["ohne_material"]))
+                         % ", ".join(ergebnis["without_material"]))
         # material without a Young's modulus: FreeCAD aborts while writing and leaves
         # a half-finished .inp behind - this has to be noticed here, not as a KeyError
-        fehlend = material_modul.fehlende_werte(material_modul.materialien_finden(self.analyse))
+        fehlend = material_modul.missing_values(material_modul.find_materials(self.analyse))
         if fehlend:
             teile.append(translate("These materials are missing values CalculiX needs: %s - "
                                     "complete them in the material editor.")
@@ -1278,7 +1278,7 @@ class AssistantPanel:
             return
         # ignored element sets do not matter for the optimization - they need no
         # allowable stress either and are not reported here
-        aktiv = dom.aktive(self.domains)
+        aktiv = dom.active(self.domains)
         ohne = [name for name in sorted(self.elsets)
                 if name in aktiv and name not in self.stress]
         if not ohne:
@@ -1341,18 +1341,18 @@ class AssistantPanel:
             self._uebernehme_inp("", "")
             self._setze_status(translate("No .inp file yet."), "auftrag")
             return
-        self.obj.WorkingDir = fem.arbeitsordner(self.solver, self.obj.Document.Name, self.netz,
-                                                gemerkt=self.obj.WorkingDir)
+        self.obj.WorkingDir = fem.working_dir(self.solver, self.obj.Document.Name, self.netz,
+                                              remembered=self.obj.WorkingDir)
 
         pfad, quelle = fem.find_inp(self.solver, self.netz, self.obj.Document.Name,
-                                    gemerkt=self.obj.WorkingDir)
+                                    remembered=self.obj.WorkingDir)
         if not pfad:
             self._uebernehme_inp("", "")
             self._setze_status(translate("No .inp file yet."), "auftrag")
             return
 
-        kopie = fem.uebernehme_inp(pfad, self.solver, self.obj.Document.Name, self.netz,
-                                   gemerkt=self.obj.WorkingDir)
+        kopie = fem.adopt_inp(pfad, self.solver, self.obj.Document.Name, self.netz,
+                              remembered=self.obj.WorkingDir)
         self._uebernehme_inp(kopie, quelle)
         typen = ", ".join(elset_reader.element_types(kopie)) or "?"
         self._setze_status(translate("%d element set(s), element type %s.")
@@ -1370,7 +1370,7 @@ class AssistantPanel:
                 QUELLTEXTE.get(quelle, quelle)), tip))
         self.pfad_feld.setToolTip(tip)
         # size and date only - where the file came from is part of the hint
-        self.info.setText(fem.datei_info(pfad) if pfad else translate("no file yet"))
+        self.info.setText(fem.file_info(pfad) if pfad else translate("no file yet"))
         self.knopf_inp.setText(translate("Write input file (.inp)" if not pfad
                                           else "Rewrite input file (.inp)"))
         ordner = os.path.dirname(pfad) if pfad else self.obj.WorkingDir
@@ -1392,17 +1392,17 @@ class AssistantPanel:
             self.elsets = {}
             self.tabelle.setRowCount(0)
             return
-        self.elsets = dom.zeige_elsets(elset_reader.read_elsets(pfad))
+        self.elsets = dom.visible_elsets(elset_reader.read_elsets(pfad))
         self.dicken = elset_reader.read_shell_thicknesses(pfad)
         gespeichert = dom.parse_domains(self.obj.Domains)
         self.stress = dom.parse_stress(getattr(self.obj, "StressLimits", []))
-        self.stress_aus = dom.aus_stress(getattr(self.obj, "StressLimits", []))
+        self.stress_aus = dom.blank_stress(getattr(self.obj, "StressLimits", []))
         if gespeichert:
             # new element sets (after a model change) are design space again -
             # "ignorieren" is the exception that is set on purpose
-            self.domains = dom.rollen_fuer(self.elsets, gespeichert)
+            self.domains = dom.roles_for(self.elsets, gespeichert)
         else:
-            self.domains = dom.rollen_fuer(self.elsets)
+            self.domains = dom.roles_for(self.elsets)
             self._speichere_domains()
         self._fuelle_tabelle()
         self._vorschlag_aus_material()
@@ -1417,11 +1417,11 @@ class AssistantPanel:
         the number is still at hand, it stands in the hint below the list.
         """
         fehlend = [name for name in self.elsets
-                   if name in dom.aktive(self.domains) and name not in self.stress]
+                   if name in dom.active(self.domains) and name not in self.stress]
         self.stress_moeglich = {}
         if fehlend:
-            werte = material_modul.streckgrenze(
-                material_modul.materialien_finden(self.analyse), fehlend,
+            werte = material_modul.yield_strength(
+                material_modul.find_materials(self.analyse), fehlend,
                 elset_reader.read_section_materials(getattr(self.obj, "InpFile", "")))
             self.stress_moeglich = {name: wert for name, wert in werte.items()
                                     if name in fehlend}
@@ -1536,8 +1536,8 @@ class AssistantPanel:
         self._setze_status(translate("Writing the CalculiX input file from the FEM model ... "
                                       "FreeCAD is blocked while it runs."), "info")
         try:
-            pfad, dauer = fem.erzeuge_inp(self.analyse, self.solver, self.netz,
-                                          self.obj.Document.Name, gemerkt=self.obj.WorkingDir)
+            pfad, dauer = fem.create_inp(self.analyse, self.solver, self.netz,
+                                         self.obj.Document.Name, remembered=self.obj.WorkingDir)
         except Exception as exc:
             self._setze_status(translate("The input file could not be written: %s") % exc,
                                "fehler")
