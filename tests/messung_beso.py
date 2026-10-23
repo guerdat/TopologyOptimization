@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Misst die Vorbereitungszeit einer beso-Kopie (Aufruf aus vergleich_varianten.py).
+"""Measure the preparation time of a beso copy (called from vergleich_varianten.py).
 
-Parameter: <beso-ordner> <inp-datei> <elset>
-Gibt eine Zeile mit den Zeiten aus, damit der Rahmen sie einsammeln kann.
-Jede Variante laeuft in einem eigenen Prozess, weil jede ihr eigenes
-beso_lib/beso_filters mitbringt.
+Parameters: <beso-directory> <inp-file> <elset>
+Prints one line with the times so the harness can collect them.
+Each variant runs in its own process because each brings its own
+beso_lib/beso_filters.
 """
 import os
 import sys

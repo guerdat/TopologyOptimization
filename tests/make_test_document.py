@@ -42,15 +42,15 @@ try:
 
     doc = App.newDocument("TopoOpt_Testmodell")
 
-    # 1. die Geometrie: ein Balken 100 x 20 x 10 mm
+    # 1. the geometry: a beam 100 x 20 x 10 mm
     kasten = doc.addObject("Part::Box", "Balken")
     kasten.Length = 100.0
     kasten.Width = 20.0
     kasten.Height = 10.0
     doc.recompute()
 
-    # 2. Material - mit Zuordnung zum Koerper, sonst schreibt FreeCAD kein
-    #    Material-ELSET in die Eingabedatei (und die Domains-Tabelle bleibt leer)
+    # 2. material - assigned to the body, otherwise FreeCAD writes no
+    #    material ELSET into the input file (and the domains table stays empty)
     material = ObjectsFem.makeMaterialSolid(doc, "MaterialSolid")
     material.Material = {
         "Name": "Steel",
@@ -60,14 +60,14 @@ try:
     }
     material.References = [(kasten, "Solid1")]
 
-    # 3. Vernetzung (grob, damit die Tests schnell sind)
+    # 3. meshing (coarse so the tests are fast)
     netz = ObjectsFem.makeMeshGmsh(doc, "FEMMeshGmsh")
     netz.Shape = kasten
     netz.CharacteristicLengthMax = 8.0
     netz.CharacteristicLengthMin = 8.0
     doc.recompute()
 
-    # 4. Analyse mit Netz, Material und Solver
+    # 4. analysis with mesh, material and solver
     analyse = ObjectsFem.makeAnalysis(doc, "Analysis")
     solver = ObjectsFem.makeSolverCalculiXCcxTools(doc, "SolverCalculiX")
     analyse.addObject(material)
@@ -75,7 +75,7 @@ try:
     analyse.addObject(solver)
     doc.recompute()
 
-    # 5. Netz wirklich erzeugen (gmsh laeuft als externes Programm)
+    # 5. really create the mesh (gmsh runs as an external program)
     import femmesh.gmshtools as gmshtools
     ergebnis = gmshtools.GmshTools(netz).create_mesh()
     log("Netz erzeugt: %s" % ergebnis)

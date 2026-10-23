@@ -16,9 +16,9 @@ import tempfile
 
 import FreeCAD as App
 
-# Die Meldungen sind deutsch.  Ohne UTF-8-Locale (LANG=C) waere sys.stdout ASCII und ein print()
-# mit Umlaut wuerde den Lauf abbrechen - die restlichen Pruefungen liefen dann nie.  Darum die
-# Ausgabe fest auf UTF-8 stellen, mit "replace" als Notnagel.
+# The messages are German.  Without a UTF-8 locale (LANG=C) sys.stdout would be ASCII
+# and a print() with an umlaut would abort the run - the remaining checks would then
+# never run.  That is why the output is pinned to UTF-8, with "replace" as the fallback.
 for _strom in (sys.stdout, sys.stderr):
     _umstellen = getattr(_strom, "reconfigure", None)
     if _umstellen is not None:
@@ -78,10 +78,10 @@ analysis.removeObject(obj)
 pruefe(find_analysis(obj) is analysis, "find_analysis findet sie auch auszerhalb ueber den Namen")
 analysis.addObject(obj)
 
-# Persistenz: speichern und die gespeicherte Datei pruefen.
-# App.openDocument() wird hier bewusst NICHT benutzt: FreeCAD fuehrt ein
-# Startskript danach erneut aus (gleicher Prozess, gemessen) - das macht einen
-# Test unberechenbar.  Siehe Documentation/development.md.
+# Persistence: save the document and check the saved file.
+# App.openDocument() is deliberately NOT used here: FreeCAD then runs a start
+# script a second time (same process, measured) - that makes a test
+# unpredictable.  See Documentation/development.md.
 pfad = os.path.join(tempfile.gettempdir(), "topoopt_headless_test.FCStd")
 if os.path.exists(pfad):
     os.remove(pfad)
@@ -99,7 +99,7 @@ pruefe("Domains" in xml and "TestSet|design" in xml, "Rollen sind gespeichert")
 pruefe("TopologyObject" in xml, "Proxy-Klasse (TopologyObject) ist gespeichert")
 os.remove(pfad)
 
-# --- Element-Sets und Rollen (reine Logik, ohne Dokument) -------------------
+# --- element sets and roles (pure logic, no document) -----------------------
 from freecad.TopoOpt.core import domains as dom        # noqa: E402
 from freecad.TopoOpt.core import elsets as elset_reader  # noqa: E402
 
@@ -138,7 +138,7 @@ rollen_leer = dom.rollen_fuer({"A": 10, "B": 10})
 pruefe(set(rollen_leer.values()) == {dom.DESIGN},
        "ohne Vorbelegung ist alles Design-Raum")
 
-# --- Eingabedatei finden (Suchreihenfolge) ---------------------------------
+# --- find the input file (search order) -------------------------------------
 import shutil as _shutil  # noqa: E402
 import tempfile as _tempfile  # noqa: E402
 import uuid as _uuid  # noqa: E402
@@ -159,7 +159,7 @@ ordner2 = _tempfile.mkdtemp(prefix="fcfem_topoopt_other_")
 pruefe(fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", gemerkt=ordner)[0] is None,
        "ohne Datei wird nichts gefunden")
 
-# 1. der (gemerkte) FEM-Arbeitsordner wird verwendet
+# 1. the (remembered) FEM working directory is used
 pruefe(fem_core.arbeitsordner(dummy_solver, "TopoOptTest", dummy_mesh, gemerkt=ordner) == ordner,
        "gemerkter FEM-Arbeitsordner wird verwendet")
 
@@ -169,7 +169,7 @@ pfad, quelle = fem_core.find_inp(dummy_solver, dummy_mesh, "TopoOptTest", gemerk
 pruefe(quelle == "fem", "Datei im FEM-Arbeitsordner wird gefunden")
 pruefe(os.path.dirname(pfad) == ordner, "der FEM-Arbeitsordner wird verwendet")
 
-# 2. Datei nur in einem anderen FEM-Arbeitsordner
+# 2. file only in another FEM working directory
 os.remove(os.path.join(ordner, dateiname))
 with open(os.path.join(ordner2, dateiname), "w") as fh:
     fh.write("*ELSET, ELSET=SuchSet\n1, 2, 3\n")
@@ -181,7 +181,7 @@ pruefe(os.path.dirname(kopie) == ordner and os.path.isfile(kopie),
 pruefe(fem_core.datei_info(kopie).startswith("0.0 kB"), "Dateiinfo nennt Groesse (%s)"
        % fem_core.datei_info(kopie))
 
-# 3. nur der eigene (alte) Arbeitsordner
+# 3. only our own (old) working directory
 os.remove(os.path.join(ordner, dateiname))
 os.remove(os.path.join(ordner2, dateiname))
 eigener = fem_core.run_dir("TopoOptTest", dummy_mesh.Name)
@@ -194,21 +194,21 @@ _shutil.rmtree(ordner2, ignore_errors=True)
 _shutil.rmtree(eigener, ignore_errors=True)
 App.closeDocument(doc3.Name)
 
-# --- Uebersetzung (englische Quelle, deutsche Uebersetzung) -----------------
+# --- translation (English source, German translation) -----------------------
 from freecad.TopoOpt.core import i18n  # noqa: E402
 
 unbekannt = "a text that is not in the dictionary"
 pruefe(i18n.uebersetze(unbekannt) == unbekannt, "unbekannte Texte bleiben unveraendert")
 pruefe(i18n.uebersetze("Initialize") in ("Initialize", "Initialisieren"),
        "bekannter Text wird uebersetzt oder bleibt englisch: %r" % i18n.uebersetze("Initialize"))
-# Die Sprache kommt aus den FreeCAD-Einstellungen oder aus dem System - welche Sprache das
-# ist, haengt von der Maschine ab (in einer CI ohne Locale ist es "C").  Geprueft wird darum
-# nur, was die Funktion zusichert: ein leeres Ergebnis oder ein Sprachkuerzel aus Buchstaben.
+# The language comes from FreeCAD's settings or from the system - which language that
+# is depends on the machine (in a CI without a locale it is "C").  The check therefore
+# covers only what the function promises: an empty result or a code made of letters.
 erkannt = i18n.sprache()
 pruefe(erkannt == "" or erkannt.isalpha(),
        "die Sprache wird als Kuerzel erkannt (%r)" % erkannt)
 
-# --- Parameter (Schritt 2) --------------------------------------------------
+# --- parameters (step 2) ----------------------------------------------------
 from freecad.TopoOpt.core import params as prm  # noqa: E402
 
 pruefe(prm.mass_ratios("gentle") == (0.01, 0.02), "Massenraten 'sanft' wie in der beso-GUI")
@@ -261,7 +261,7 @@ pruefe('name="CpuCores"' in _xml, "Kerne sind gespeichert")
 pruefe('name="FIViolatedTolerance"' in _xml, "FI-Toleranz ist gespeichert")
 os.remove(pfad4)
 
-# --- mitgeliefertes beso + Filterradius -------------------------------------
+# --- bundled beso + filter radius -------------------------------------------
 from freecad.TopoOpt.core import beso as beso_modul  # noqa: E402
 from freecad.TopoOpt.core import radius as radius_modul  # noqa: E402
 
@@ -294,7 +294,7 @@ print("ohne Nachbarn: bei 0,1x mittel %d, bei 10x mittel %d"
 pruefe(len(zu_klein) > 0, "bei zu kleinem Radius fehlen Nachbarn (%d Elemente)" % len(zu_klein))
 pruefe(len(gross_genug) == 0, "bei grossem Radius hat jedes Element Nachbarn")
 
-# die schnelle Gitterpruefung muss dasselbe liefern wie besos prepare2s
+# the fast grid check has to return the same as beso's prepare2s
 gleich = True
 for faktor in (0.5, 1.0, 1.5, 2.0, 3.0):
     radius = faktor * daten["mittel"]
@@ -313,13 +313,13 @@ pruefe(ergebnis.get("ohne_nachbarn") == 0,
 pruefe(ergebnis.get("radius", 0) >= radius_modul.BESO_AUTO * daten["mittel"],
        "robuster Radius ist mindestens so gross wie besos 'auto'")
 pruefe(radius_modul.robust({}) == {}, "ohne Elementdaten kommt ein leeres Ergebnis")
-# beso schreibt beim Einlesen eine Logdatei neben die .inp (write_to_log) - im Test
-# wieder weg damit, im Arbeitsordner ist sie gewollt
+# beso writes a log file next to the .inp while reading it (write_to_log) - remove it
+# again in the test, in the working directory it is wanted
 protokoll = os.path.splitext(beispiel)[0] + ".log"
 if os.path.isfile(protokoll):
     os.remove(protokoll)
 
-# --- Schritt 3: die Konfiguration fuer beso ---------------------------------
+# --- step 3: the configuration for beso -------------------------------------
 from freecad.TopoOpt.core import conf as conf_modul  # noqa: E402
 
 pruefe(conf_modul.UNTERORDNER == "topoopt_beso",
@@ -328,9 +328,9 @@ pruefe("ccx" in os.path.basename(conf_modul.calculix_pfad()).lower(),
        "CalculiX wird gefunden (%s)" % conf_modul.calculix_pfad())
 pruefe("python" in os.path.basename(conf_modul.python_pfad() or "").lower(),
        "ein Python fuer den Lauf wird gefunden (%s)" % conf_modul.python_pfad())
-# Der Interpreter darf nie FreeCAD selbst sein: an FreeCADCmd ist "-u" FreeCADs eigene
-# Option (Nutzer-Parameterdatei), beso_main.py wuerde ueberschrieben statt zu laufen
-# (im Flatpak gemessen - dort ist sys.executable die FreeCADCmd im App-Verzeichnis).
+# The interpreter must never be FreeCAD itself: on FreeCADCmd "-u" is FreeCAD's own
+# option (user parameter file), beso_main.py would be overwritten instead of running
+# (measured in the Flatpak - there sys.executable is the FreeCADCmd in the app directory).
 pruefe(conf_modul.python_pfad() is None
        or "freecad" not in os.path.basename(conf_modul.python_pfad()).lower(),
        "der Interpreter ist nicht FreeCAD selbst (%s)" % conf_modul.python_pfad())
@@ -338,8 +338,8 @@ pruefe(conf_modul.calculix_pfad() == "ccx" or os.path.isfile(conf_modul.calculix
        "der gefundene Solver ist eine Datei (%s)" % conf_modul.calculix_pfad())
 pruefe(conf_modul.python_pfad() is None or os.path.isfile(conf_modul.python_pfad()),
        "der gefundene Interpreter ist eine Datei (%s)" % conf_modul.python_pfad())
-# ohne Python gibt es keinen Lauf: klare Meldung statt Start eines falschen Prozesses,
-# und es wird nichts in den Arbeitsordner geschrieben
+# without Python there is no run: a clear message instead of starting a wrong process,
+# and nothing is written into the working directory
 _echter_pfad = conf_modul.python_pfad
 conf_modul.python_pfad = lambda: None
 try:
@@ -379,8 +379,8 @@ pruefe("['simple', 4.85]" in text,
        "der robuste Radius wird als Zahl geschrieben (kein 'robust' fuer beso)")
 pruefe("_mpl.use('Agg')" in text, "ohne Fenster am Ende (beso_main ruft plt.show)")
 
-# "ignore" heisst: das Set kommt in der Optimierung nicht vor - kein Design-,
-# kein Nicht-Design-Raum, und es braucht auch keine zulaessige Spannung
+# "ignore" means: the set does not appear in the optimization - no design
+# space, no non-design space, and it needs no permissible stress either
 domains_ignore = {"SetA": "design", "SetB": "non_design", "SetC": "ignore"}
 text_ignore = conf_modul.conf_text(obj5, os.path.join("C:", os.sep, "tmp", "Mesh.inp"),
                                    domains_ignore, os.path.join("C:", os.sep, "tmp"))
@@ -399,10 +399,10 @@ pruefe(os.path.isfile(os.path.join(ziel4, "beso_main.py")), "beso_main.py liegt 
 pruefe(os.path.isfile(os.path.join(ziel4, "beso_conf_vorlage.py")),
        "die beso-Vorlage liegt unveraendert daneben")
 
-# --- der Lauf wird ungepuffert gestartet --------------------------------------
-# Ohne -u/PYTHONUNBUFFERED puffert das Kind blockweise: die Logdatei bleibt leer,
-# bis der Lauf endet, und das Detailfeld im Panel zeigt waehrend des Laufs nichts
-# (gemessen: 0 Bytes bis zum Prozessende).
+# --- the run is started unbuffered ------------------------------------------
+# Without -u/PYTHONUNBUFFERED the child buffers in blocks: the log file stays empty
+# until the run ends, and the details field in the panel shows nothing while the run
+# is going on (measured: 0 bytes until the process ends).
 _echter_popen = conf_modul.subprocess.Popen
 _aufrufe = []
 
@@ -433,7 +433,7 @@ if _aufrufe:
 else:
     pruefe(False, "der Lauf wird gestartet (Popen wurde aufgerufen)")
 
-# --- zulaessige Spannung -> Failure Index -------------------------------------
+# --- permissible stress -> failure index ------------------------------------
 limits = dom.parse_stress(["SetA|235.0", "SetB|", "SetC|kaputt", "SetD|0"])
 pruefe(limits == {"SetA": 235.0},
        "nur gueltige, positive Spannungen werden gelesen (%s)" % limits)
@@ -451,13 +451,13 @@ pruefe("stress_limits = {'SetA': 235.0}" in text2,
 pruefe("domain_FI[_name] = [[('stress_von_Mises', _sigma * 1e6)]" in text2,
        "daraus wird besos domain_FI (Stress in Pa plus zulaessiger Wert)")
 
-# der harte Beweis: die geschriebene Konfiguration laeuft durch und setzt domain_FI
+# the hard proof: the written configuration executes and sets domain_FI
 obj5.StressLimits = ["SetA|235.0", "SetB|100.0"]
 ziel5, conf5 = conf_modul.schreibe_dateien(obj5, os.path.join(ordner4, "Mesh.inp"),
                                            domains4, ordner4)
-raum = {"__file__": conf5}          # die Konfiguration liest die Vorlage ueber __file__
-# beso_main definiert diese Namen, bevor es die Konfiguration liest (Zeile 25 ff.);
-# die Konfiguration baut darauf auf - ohne sie laeuft sie nicht
+raum = {"__file__": conf5}          # the configuration reads the template via __file__
+# beso_main defines these names before it reads the configuration (line 25 ff.);
+# the configuration builds on them - without them it does not run
 for _name in ("domain_optimized", "domain_density", "domain_material", "domain_thickness",
               "domain_offset", "domain_orientation", "domain_FI", "domain_same_state"):
     raum[_name] = {}
@@ -473,15 +473,15 @@ pruefe(conf_modul.log_pfad(os.path.join(ordner4, "Mesh.inp")).endswith("Mesh_top
        "die Logdatei liegt neben der Eingabedatei")
 _shutil.rmtree(ordner4, ignore_errors=True)
 
-# --- Schritt 3: das Protokoll eines Laufs lesen ------------------------------
+# --- step 3: read the protocol of a run -------------------------------------
 from freecad.TopoOpt.core import lauf as lauf_modul  # noqa: E402
 
-# --- Schritt 3: beso's Iterationstabelle lesen ---------------------------------
+# --- step 3: read beso's iteration table ------------------------------------
 beso_beispiel = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
                              "beso_beispiel.log")
-# Der Mitschnitt eines Laufs ist ein Testeingang und liegt im Repository.  Fehlt er, wird das
-# gemeldet - aber der Lauf bricht nicht ab: eine fehlende Datei darf die Pruefungen danach
-# (VTK- und State-Reader) nicht verschlucken.
+# The recording of a run is a test input and lives in the repository.  If it is missing
+# that is reported - but the run does not stop: a missing file must not swallow the
+# checks after it (the VTK and state readers).
 pruefe(os.path.isfile(beso_beispiel), "die Testdatei tests/data/beso_beispiel.log ist da")
 tabelle = lauf_modul.tabelle_lesen(beso_beispiel)
 pruefe(len(tabelle) == 6, "die Iterationstabelle wird gelesen (6 Zeilen, 2 Laeufe)")
@@ -497,8 +497,8 @@ if len(tabelle) == 6:
            "ohne Failure Index gibt es keine FI-Werte (nur Masse und Energiedichte)")
 
 f = lauf_modul.fortschritt(beso_beispiel, 0.6)
-# ohne Tabelle sind iteration/masse/ziel None - die Pruefungen muessen das melden,
-# nicht mit einem TypeError abbrechen (sonst sieht man die Fehler danach nie)
+# without a table, iteration/masse/ziel are None - the checks have to report that,
+# not abort with a TypeError (otherwise the errors after them are never seen)
 pruefe(f["iteration"] == 2 and f["masse"] is not None
        and abs(f["masse"] - 19110.748316642857) < 1e-6,
        "der Fortschritt kennt Iteration und Masse (%s, %s)" % (f["iteration"], f["masse"]))
@@ -527,19 +527,19 @@ pruefe(daten_lauf["fertig"] is True, "das Ende des Laufs wird erkannt")
 pruefe(lauf_modul.verlauf_lesen("gibt-es-nicht.log")["iteration"] == 0,
        "ohne Logdatei kommt ein leeres Ergebnis")
 
-# --- Schalendicken aus der .inp (*SHELL SECTION) -------------------------------
+# --- shell thicknesses from the .inp (*SHELL SECTION) -----------------------
 schale = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
                       "schale_beispiel.inp")
 dicken = elset_reader.read_shell_thicknesses(schale)
 pruefe(dicken == {"MaterialSolidElementGeometry2D": 10.0,
                   "MaterialSolidElementGeometry2D001": 2.5},
        "die Schalendicken werden je Element-Set gelesen (%s)" % (dicken,))
-# ein Volumenmodell hat keine SHELL SECTION-Karte
+# a solid model has no SHELL SECTION card
 pruefe(elset_reader.read_shell_thicknesses(os.path.join(
            os.path.dirname(os.path.abspath(__file__)), "data", "beispiel.inp")) == {},
        "ohne SHELL SECTION bleibt die Dicke leer")
 
-# die Konfiguration uebernimmt genau die Dicken der vorhandenen Domains
+# the configuration takes over exactly the thicknesses of the existing domains
 text_schale = conf_modul.conf_text(obj5, schale,
                                    {"MaterialSolidElementGeometry2D": "design",
                                     "MaterialSolidElementGeometry2D001": "non_design"},
@@ -557,7 +557,7 @@ pruefe("thickness = {'MaterialSolidElementGeometry2D': 10.0}" in text_nur_eine,
 pruefe("thickness = {}" in text,
        "ein Volumenmodell bekommt keine Schalendicke in die Konfiguration")
 
-# --- zulaessige Spannung aus dem Material -------------------------------------
+# --- permissible stress from the material -----------------------------------
 from freecad.TopoOpt.core import material as material_modul  # noqa: E402
 
 pruefe(material_modul.MPa("315 MPa") == 315.0,
@@ -570,8 +570,8 @@ pruefe(material_modul.MPa("") is None and material_modul.MPa("zach MPa") is None
        and material_modul.MPa("5 fuss") is None,
        "unbrauchbare Angaben liefern keinen Vorschlag")
 
-# Werte wie in FreeCADs Materialkarten: Aluminum-6061-T6 hat 'YieldStrength: 276 MPa',
-# CalculiX-Steel hat keine Streckgrenze (nur YoungsModulus)
+# Values as in FreeCAD's material cards: Aluminum-6061-T6 has 'YieldStrength: 276 MPa',
+# CalculiX-Steel has no yield strength (only YoungsModulus)
 streck = material_modul.streckgrenze(
     [("MaterialSolidSolid", {"Name": "Alu", "YieldStrength": "276 MPa",
                              "UltimateTensileStrength": "310 MPa"})],
@@ -593,8 +593,8 @@ nur_eins = material_modul.streckgrenze([("Irgendwas", {"YieldStrength": "235 MPa
 pruefe(nur_eins == {"VoelligAnderes": 235.0},
        "bei genau einem Material gilt es fuer alle Sets (%s)" % (nur_eins,))
 
-# Die Zuordnung aus der Eingabedatei hat Vorrang: sie sagt, mit welchem Material
-# CalculiX wirklich rechnet.  Der Name des Sets sieht nur so aus wie ein Material.
+# The assignment from the input file takes precedence: it says which material
+# CalculiX really uses.  The name of the set only looks like a material.
 section_inp = os.path.join(tempfile.gettempdir(), "topoopt_section_test.inp")
 with open(section_inp, "w", encoding="utf8") as fh:
     fh.write("*NODE\n1, 0, 0, 0\n2, 1, 0, 0\n3, 0, 1, 0\n4, 0, 0, 1\n5, 1, 1, 0\n"
@@ -617,7 +617,7 @@ ohne_inp = material_modul.streckgrenze(
 pruefe(ohne_inp == {"MaterialSolidSolid": 235.0},
        "ohne Zuordnung in der .inp greift der Namensanfang (%s)" % (ohne_inp,))
 
-# Eine abgebrochene Eingabedatei und ein Set ohne Materialzuordnung muessen auffallen
+# A truncated input file and a set without a material assignment have to stand out
 kaputt = os.path.join(tempfile.gettempdir(), "topoopt_kaputt.inp")
 with open(kaputt, "w", encoding="utf8") as fh:
     fh.write("*NODE\n1, 0, 0, 0\n2, 1, 0, 0\n"
@@ -642,7 +642,7 @@ pruefe(bericht2["fehlende_karten"] == [], "eine vollstaendige .inp meldet keine 
 pruefe(bericht2["ohne_material"] == ["Set2"],
        "nur das Set ohne Section-Karte wird genannt (%s)" % bericht2["ohne_material"])
 
-# Ein Material ohne E-Modul laesst FreeCAD beim Schreiben der .inp abbrechen
+# A material without a Young's modulus makes FreeCAD abort while writing the .inp
 fehlend = material_modul.fehlende_werte(
     [("Vollstaendig", {"YoungsModulus": "210000 MPa", "PoissonRatio": "0.3"}),
      ("Leer", {"Density": "7.9e-06 kg/mm^3"}),
@@ -652,7 +652,7 @@ pruefe(fehlend == {"Leer": ["YoungsModulus", "PoissonRatio"], "OhneNu": ["Poisso
 pruefe(material_modul.fehlende_werte([("A", {"YoungsModulus": "x", "PoissonRatio": "y"})]) == {},
        "ein vollstaendiges Material wird nicht gemeldet")
 
-# --- VTK-Iterationen lesen (resulting_states.vtk) ------------------------------
+# --- read VTK iterations (resulting_states.vtk) -------------------------------
 from freecad.TopoOpt.core import vtk as vtk_modul  # noqa: E402
 
 vtk_beispiel = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
@@ -667,9 +667,9 @@ pruefe(vtk_daten["zellen"][0][0] < len(vtk_daten["punkte"]),
 pruefe(len(vtk_daten["zustaende"]) == 2 and vtk_daten["namen"][0] == "element_states001",
        "beide Iterationen werden gelesen (%s)" % (vtk_daten["namen"],))
 
-# Die Knotennummern sind 0-basiert: mit -1 verschobene Zellen ergeben weit
-# auseinanderliegende Ecken.  Der Test prueft, dass die Zellen wirklich
-# zusammenhaengen (kleine Kantenlaengen), statt sich auf die Reihenfolge zu verlassen.
+# The node numbers are 0-based: cells shifted by -1 give corners that lie far
+# apart.  The test checks that the cells really hang together (small edge
+# lengths) instead of relying on the order.
 def _groesste_kante(punkte, zellen, zustand):
     groesste = 0.0
     for i, zelle in enumerate(zellen[:300]):
@@ -685,8 +685,8 @@ richtig = _groesste_kante(vtk_daten["punkte"], vtk_daten["zellen"], vtk_daten["z
 verschoben = _groesste_kante(vtk_daten["punkte"],
                              [[k - 1 for k in zelle] for zelle in vtk_daten["zellen"]],
                              vtk_daten["zustaende"][0])
-# Das Beispielnetz ist grob (Balken 100 x 20 x 10 mm, 401 Elemente): die groesste
-# Elementkante liegt bei rund 13 mm, mit verschobenen Nummern bei ueber 100 mm.
+# The example mesh is coarse (beam 100 x 20 x 10 mm, 401 elements): the largest
+# element edge is around 13 mm, with shifted numbers above 100 mm.
 pruefe(richtig < 20, "mit 0-basierten Nummern bleibt die groesste Kante zur Elementgroesse "
        "passend (%.2f mm)" % richtig)
 pruefe(verschoben > 5 * richtig,

@@ -8,7 +8,7 @@ beso files are copied into a small sub folder of the working directory for a run
     <working directory>/
         FEMMeshGmsh.inp              the input file (stays where it is)
         topoopt_beso/
-            beso_main.py ...         kopies of the files that ship with the addon
+            beso_main.py ...         copies of the files that ship with the addon
             beso_conf_vorlage.py     beso's own template, untouched
             beso_conf.py             written by this addon
 
@@ -35,7 +35,7 @@ VORLAGE = "beso_conf_vorlage.py"
 
 
 def _limit(wert):
-    """beso erwartet "auto" oder eine Zahl."""
+    """beso expects "auto" or a number."""
     text = str(wert).strip()
     if text.lower() in ("auto", ""):
         return "auto"
@@ -46,13 +46,13 @@ def _limit(wert):
 
 
 def _robuster_wert(obj):
-    """Der berechnete robuste Radius; ohne Prüfung beso's eigenes "auto"."""
+    """The computed robust radius; without a check beso's own "auto"."""
     radius = float(getattr(obj, "RobusterRadius", 0.0))
     return radius if radius > 0 else "auto"
 
 
 def _filter_liste(obj):
-    """Die Filter aus dem Objekt, "robust" durch den berechneten Radius ersetzt."""
+    """The filters from the object, "robust" replaced by the computed radius."""
     from . import params as params_modul
     liste = []
     for eintrag in params_modul.parse_filters(getattr(obj, "Filters", "")):
@@ -63,18 +63,18 @@ def _filter_liste(obj):
 
 
 def conf_text(obj, inp_pfad, domains, arbeit_ordner):
-    """Der Inhalt von beso_conf.py für diesen Lauf."""
+    """The content of beso_conf.py for this run."""
     from . import params as params_modul
-    # "ignore" kommt hier gar nicht vor - solche Sets spielen fuer die Optimierung
-    # keine Rolle (kein Design-, kein Nicht-Design-Raum)
+    # "ignore" does not appear here at all - such sets play no role for the
+    # optimization (neither design nor non-design space)
     domains = dom.aktive(domains)
     design = [name for name, rolle in domains.items() if rolle == dom.DESIGN]
     mass_add, mass_remove = params_modul.mass_ratios(getattr(obj, "MassChange", "normal"))
     stress = {name: wert for name, wert in
               dom.parse_stress(getattr(obj, "StressLimits", [])).items() if name in domains}
-    # Schalendicken stehen in der .inp (*SHELL SECTION je Element-Set) - ohne sie
-    # rechnet beso mit seinem Beispielwert 1.0 mm und die Masse waere um den Faktor
-    # der Dicke falsch (gemessen: 10 mm Schale -> Masse 2000 statt 20000).
+    # shell thicknesses are in the .inp (*SHELL SECTION per element set) - without
+    # them beso computes with its example value 1.0 mm and the mass would be wrong
+    # by the factor of the thickness (measured: 10 mm shell -> mass 2000 instead of 20000).
     dicken = {name: d for name, d in
               elset_reader.read_shell_thicknesses(inp_pfad).items() if name in domains}
     return "\n".join([
@@ -136,10 +136,10 @@ def conf_text(obj, inp_pfad, domains, arbeit_ordner):
 
 
 def calculix_pfad():
-    """Der CalculiX-Solver (ccx), den FreeCAD mitbringt."""
+    """The CalculiX solver (ccx) that FreeCAD ships."""
     kandidaten = []
     if sys.executable:
-        # ccx liegt neben dem FreeCAD-Programm - im Flatpak ist das /app/bin
+        # ccx sits next to the FreeCAD program - in the Flatpak that is /app/bin
         for name in ("ccx", "ccx.exe"):
             kandidaten.append(os.path.join(os.path.dirname(sys.executable), name))
     try:
@@ -147,7 +147,7 @@ def calculix_pfad():
         kandidaten.append(os.path.join(os.path.dirname(os.path.abspath(FreeCAD.__file__)),
                                        "..", "bin", "ccx"))
     except Exception:
-        # FreeCAD ist einkompiliert (Flatpak) und hat dann keine __file__
+        # FreeCAD is compiled in (Flatpak) and then has no __file__
         pass
     for name in ("ccx", "ccx.exe"):
         kandidaten.append(os.path.join(sys.prefix, "bin", name))
@@ -155,16 +155,16 @@ def calculix_pfad():
         pfad = os.path.abspath(pfad)
         if os.path.isfile(pfad):
             return pfad
-    return shutil.which("ccx") or "ccx"     # zuletzt der Suchpfad des Systems
+    return shutil.which("ccx") or "ccx"     # the system search path last
 
 
 def python_pfad():
-    """Ein Python mit numpy und matplotlib - das von FreeCAD.
+    """A Python with numpy and matplotlib - the one of FreeCAD.
 
-    Returns None, wenn keins gefunden wird.  Der Lauf wird dann abgelehnt, statt einen
-    falschen Prozess zu starten: in FreeCADs Flatpak ist ``sys.executable`` FreeCADCmd,
-    und das an beso_main.py uebergebene ``-u`` waere dort FreeCADs eigene Option
-    (Nutzer-Parameterdatei) - die Datei wuerde ueberschrieben und der Lauf scheitern.
+    Returns None when none is found.  The run is then refused instead of starting
+    the wrong process: in FreeCAD's Flatpak ``sys.executable`` is FreeCADCmd,
+    and the ``-u`` passed to beso_main.py would be FreeCAD's own option there
+    (user parameter file) - the file would be overwritten and the run fail.
     """
     kandidaten = []
     if sys.executable:
@@ -180,7 +180,7 @@ def python_pfad():
 
 
 def schreibe_dateien(obj, inp_pfad, domains, arbeit_ordner):
-    """beso in den Arbeitsordner legen und die Konfiguration schreiben.
+    """Put beso into the working directory and write the configuration.
 
     Returns (folder of the beso copy, path of beso_conf.py).
     """
@@ -199,20 +199,20 @@ def schreibe_dateien(obj, inp_pfad, domains, arbeit_ordner):
 
 
 def log_pfad(inp_pfad):
-    """Unser Protokoll (CalculiX-Ausgabe) liegt neben der Eingabedatei."""
+    """Our protocol (CalculiX output) sits next to the input file."""
     return "%s_topoopt.log" % os.path.splitext(inp_pfad)[0]
 
 
 def beso_log_pfad(inp_pfad):
-    """beso schreibt seine eigene Datei neben die Eingabedatei (file_name + .log).
+    """beso writes its own file next to the input file (file_name + .log).
 
-    Dort steht die Iterationstabelle, aus der die Verlaufsdiagramme gelesen werden.
+    It holds the iteration table from which the history charts are read.
     """
     return "%s.log" % os.path.splitext(inp_pfad)[0]
 
 
 def _log_beiseite(inp_pfad):
-    """Die vorherige beso-Logdatei wegkopieren - beso haengt sonst an sie an."""
+    """Copy the previous beso log file aside - otherwise beso appends to it."""
     log = beso_log_pfad(inp_pfad)
     if not os.path.isfile(log):
         return
@@ -224,12 +224,12 @@ def _log_beiseite(inp_pfad):
 
 
 def starte(obj, inp_pfad, domains, arbeit_ordner):
-    """Konfiguration schreiben und beso als eigenen Prozess starten.
+    """Write the configuration and start beso as its own process.
 
     Returns (process, path of our log file, path of beso_conf.py).
     """
-    # zuerst pruefen: ohne Python gibt es keinen Lauf, und es soll auch nichts
-    # geschrieben werden.  Die Meldung landet ueber den Aufrufer im Dialog.
+    # check first: without Python there is no run, and nothing should be written
+    # either.  The message reaches the dialog through the caller.
     interpreter = python_pfad()
     if not interpreter:
         raise RuntimeError("No Python interpreter with numpy and matplotlib was found - "
@@ -242,12 +242,12 @@ def starte(obj, inp_pfad, domains, arbeit_ordner):
         fh.write("Input file : %s\n" % inp_pfad)
         fh.write("Config     : %s\n" % conf)
         fh.write("beso log   : %s\n\n" % beso_log_pfad(inp_pfad))
-    # CREATE_NO_WINDOW: sonst blitzt auf Windows ein Konsolenfenster auf
+    # CREATE_NO_WINDOW: otherwise a console window flashes up on Windows
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
-    # -u / PYTHONUNBUFFERED: ohne das puffert das Kind seine Ausgabe blockweise und
-    # die Logdatei bleibt leer, bis der Puffer voll ist oder der Lauf endet - das
-    # Detailfeld haette dann erst nach dem Job etwas zu lesen (gemessen: 0 Bytes
-    # waehrend des Laufs, alles erst am Ende)
+    # -u / PYTHONUNBUFFERED: without it the child buffers its output in blocks and
+    # the log file stays empty until the buffer is full or the run ends - the
+    # details field would then only have something to read after the job (measured:
+    # 0 bytes during the run, everything only at the end)
     umgebung = dict(os.environ)
     umgebung["PYTHONUNBUFFERED"] = "1"
     umgebung.setdefault("PYTHONUTF8", "1")

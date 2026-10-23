@@ -36,7 +36,7 @@ def zeilen(pfad):
 
 
 def hunks(alt, neu):
-    """(start line, lines, documented) je Unterschied."""
+    """(start line, lines, documented) per difference."""
     ergebnis = []
     block = []
     start = 0

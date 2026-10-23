@@ -27,8 +27,8 @@ def ensure_properties(obj):
                         uebersetze("Element sets and their role: "
                                    "<set>|<design|non_design|ignore>"))
     if not hasattr(obj, "StressLimits"):
-        # einen Failure Index rechnet beso nur, wenn eine zulaessige Spannung da ist
-        # (domain_FI in beso_conf.py) - unabhaengig vom Optimierungsziel
+        # beso only computes a failure index when an allowable stress is given
+        # (domain_FI in beso_conf.py) - regardless of the optimization goal
         obj.addProperty("App::PropertyStringList", "StressLimits", GROUP,
                         uebersetze("Allowable stress per element set (MPa): "
                                    "<set>|<value> - empty means no failure index"))

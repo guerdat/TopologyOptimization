@@ -85,7 +85,7 @@ try:
         pruefe(obj.Name in [o.Name for o in analysis.Group], "Objekt liegt in der Analyse")
         pruefe(os.path.isfile(obj.ViewObject.Proxy.getIcon()), "Objektsymbol existiert")
 
-    # der Assistent soll sich automatisch geoeffnet haben (wie bei FEM-Befehlen)
+    # the assistant should have opened automatically (as with FEM commands)
     from freecad.TopoOpt.gui import assistant as assist
     panel = assist.panel_for(obj.Name) if obj is not None else None
     pruefe(panel is not None, "Assistent oeffnet sich automatisch")

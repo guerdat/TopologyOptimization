@@ -83,7 +83,7 @@ def laden(pfad):
             while gelesen < anzahl and i < len(rest):
                 knoten_je_zelle = rest[i]
                 i += 1
-                # Knotennummern sind 0-basiert - NICHT 1 abziehen (siehe Docstring)
+                # node numbers are 0-based - do NOT subtract 1 (see docstring)
                 zellen.append(list(rest[i:i + knoten_je_zelle]))
                 i += knoten_je_zelle
                 gelesen += 1
@@ -123,7 +123,7 @@ def randflaechen(zellen, zustand, punkte):
             dreieck = tuple(ecken[j] for j in range(4) if j != k)
             schluessel = tuple(sorted(dreieck))
             if schluessel in offen:
-                offen[schluessel] = None            # innen: von zwei Zellen geteilt
+                offen[schluessel] = None            # inside: shared by two cells
             else:
                 offen[schluessel] = (dreieck, gegenueber)
 
@@ -175,7 +175,7 @@ def zellvolumen(punkte, zellen, zustand):
 
 
 def zusammenfassung(daten, nummer):
-    """Wie viel Material steht in Iteration ``nummer`` (1-basiert)?"""
+    """How much material is left in iteration ``nummer`` (1-based)?"""
     anzahl = len(daten["zustaende"])
     nummer = max(1, min(anzahl, int(nummer)))
     zustand = daten["zustaende"][nummer - 1]

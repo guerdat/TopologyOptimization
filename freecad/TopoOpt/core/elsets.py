@@ -23,7 +23,7 @@ ATTRIBUT = re.compile(r"([A-Za-z_]+)\s*=\s*\"?([^,\"]+)\"?")
 
 
 def _attribute(zeile):
-    """Alle KEY=VALUE-Attribute einer Kartenzeile, Schluessel in Grossbuchstaben."""
+    """All KEY=VALUE attributes of a card line, keys in upper case."""
     ergebnis = {}
     for schluessel, wert in ATTRIBUT.findall(zeile):
         ergebnis[schluessel.strip().upper()] = wert.strip()
@@ -35,13 +35,13 @@ def _ist_zahl(text):
 
 
 def _rohdaten(inp_path):
-    """{setname: (anzahl_eigener_elemente, [verwiesene_setnamen])}."""
+    """{set name: (number of own elements, [referenced set names])}."""
     roh = {}
     if not inp_path or not os.path.isfile(inp_path):
         return roh
 
     aktuell = None
-    modus = None          # "elemente" (aus *ELEMENT) oder "elset" (aus *ELSET)
+    modus = None          # "elemente" (from *ELEMENT) or "elset" (from *ELSET)
     generate = False
     try:
         with open(inp_path, "r", encoding="utf8", errors="ignore") as fh:
@@ -73,8 +73,8 @@ def _rohdaten(inp_path):
                         if schritt:
                             roh[aktuell][0] += max(0, (ende - start) // schritt + 1)
                     continue
-                # normale Schreibweise: Elementnummern (bis 16 je Zeile) oder
-                # ein Verweis auf einen anderen Set-Namen
+                # normal notation: element numbers (up to 16 per line) or
+                # a reference to another set name
                 for teil in (t.strip() for t in zu.split(",")):
                     if not teil:
                         continue
@@ -88,14 +88,14 @@ def _rohdaten(inp_path):
 
 
 def read_elsets(inp_path):
-    """Element sets einer .inp als {name: anzahl_elemente} (Verweise aufgeloest)."""
+    """Element sets of an .inp as {name: number of elements} (references resolved)."""
     roh = _rohdaten(inp_path)
     ergebnis = {}
 
     def aufloesen(name, gesehen):
         if name in ergebnis:
             return ergebnis[name]
-        if name not in roh or name in gesehen:      # Zyklus oder unbekannt
+        if name not in roh or name in gesehen:      # cycle or unknown
             return 0
         gesehen = gesehen | {name}
         anzahl, verweise = roh[name]
@@ -110,16 +110,16 @@ def read_elsets(inp_path):
 
 
 def read_shell_thicknesses(inp_path):
-    """Schalendicken aus den ``*SHELL SECTION``-Karten: ``{elset: dicke_mm}``.
+    """Shell thicknesses from the ``*SHELL SECTION`` cards: ``{elset: thickness_mm}``.
 
-    FreeCAD schreibt fuer jedes Flaechen-Elset eine eigene Karte::
+    FreeCAD writes a separate card for every surface elset::
 
         *SHELL SECTION, ELSET=MaterialSolidElementGeometry2D, MATERIAL=MaterialSolid, OFFSET=0
         10
 
-    Damit ist die Zuordnung Element-Set -> Dicke **eindeutig**, auch wenn ein Modell
-    mehrere Dicken hat (dann gibt es mehrere Karten) - es muss nichts geraten werden.
-    Ein Volumenmodell hat keine solche Karte; dann ist das Ergebnis leer.
+    This makes the assignment element set -> thickness **unambiguous**, even when a
+    model has several thicknesses (then there are several cards) - nothing has to be
+    guessed.  A volume model has no such card; the result is empty then.
     """
     dicken = {}
     if not inp_path or not os.path.isfile(inp_path):
@@ -140,7 +140,7 @@ def read_shell_thicknesses(inp_path):
                     continue
                 if not zu or not fehlt_noch or aktuell is None:
                     continue
-                # die erste Zahl der Karte ist die Dicke
+                # the first number on the card is the thickness
                 try:
                     dicken[aktuell] = float(zu.split(",")[0].strip())
                 except ValueError:
@@ -152,15 +152,15 @@ def read_shell_thicknesses(inp_path):
 
 
 def read_section_materials(inp_path):
-    """Material je Element-Set aus den Section-Karten: ``{elset: materialname}``.
+    """Material per element set from the section cards: ``{elset: material name}``.
 
-    FreeCAD schreibt die Zuordnung fertig in die Eingabedatei::
+    FreeCAD writes the finished assignment into the input file::
 
         *SOLID SECTION, ELSET=MaterialSolidSolid, MATERIAL=MaterialSolid
 
-    Damit ist eindeutig, mit welchem Material CalculiX fuer dieses Set rechnet -
-    auch dann, wenn ein Modell mehrere Materialien enthaelt.  Sie ist deshalb die
-    Wahrheit und nicht der Name des Sets (der nur *aussieht* wie das Material).
+    This makes it unambiguous which material CalculiX uses for this set - even
+    when a model contains several materials.  It is therefore the truth and not
+    the name of the set (which only *looks* like the material).
     """
     zuordnung = {}
     if not inp_path or not os.path.isfile(inp_path):
@@ -183,20 +183,20 @@ def read_section_materials(inp_path):
 
 
 def pruefe_inp(inp_path, sets=None):
-    """Ist die Eingabedatei vollstaendig - und hat jedes Element-Set ein Material?
+    """Is the input file complete - and does every element set have a material?
 
-    Eine Datei, die mitten im Schreiben abgebrochen ist, faellt nicht immer auf:
-    FreeCAD schreibt Knoten, Elemente und Materialien und dann erst die
-    Section-Karten, den ``*STEP`` und die Randbedingungen.  CalculiX rechnet dann
-    nichts, die Ergebnisdatei bleibt leer, und beso meldet nur "CalculiX results
-    not found" - ohne zu sagen, woran es liegt.
+    A file that was interrupted in the middle of writing does not always stand
+    out: FreeCAD writes nodes, elements and materials and only then the
+    section cards, the ``*STEP`` and the boundary conditions.  CalculiX then
+    computes nothing, the result file stays empty, and beso only reports
+    "CalculiX results not found" - without saying what the cause is.
 
-    Ausserdem braucht jedes Element-Set, das die Optimierung kennt, eine
-    Section-Karte (``*SOLID SECTION``/``*SHELL SECTION``).  Fehlt sie, gehoert das
-    Set zu keiner Koerper-Material-Zuordnung (typisch: ein Material wurde auf
-    Flaechen gelegt) und CalculiX laesst die Elemente weg.
+    In addition every element set the optimization knows about needs a
+    section card (``*SOLID SECTION``/``*SHELL SECTION``).  If it is missing, the
+    set belongs to no body-material assignment (typical: a material was placed
+    on surfaces) and CalculiX leaves the elements out.
 
-    Returns ``{"vorhanden": bool, "fehlende_karten": [Karte, ...],
+    Returns ``{"vorhanden": bool, "fehlende_karten": [card, ...],
     "ohne_material": [set, ...]}``
     """
     ergebnis = {"vorhanden": False, "fehlende_karten": [], "ohne_material": []}
@@ -220,9 +220,9 @@ def pruefe_inp(inp_path, sets=None):
                         section_sets.add(elset)
     except OSError:
         return ergebnis
-    # *MATERIAL und *STEP stehen in der zweiten Haelfte: fehlt eines, ist die Datei
-    # beim Schreiben abgebrochen (Randbedingungen sind absichtlich NICHT geprueft -
-    # ein Modell kann auch ohne sie geschrieben werden)
+    # *MATERIAL and *STEP stand in the second half: if one is missing, the file was
+    # interrupted while writing (boundary conditions are deliberately NOT checked -
+    # a model can also be written without them)
     ergebnis["fehlende_karten"] = [name for name in ("*MATERIAL", "*STEP")
                                    if not karten[name]]
     if sets:
@@ -237,7 +237,7 @@ def gesamt_elemente(inp_path):
 
 
 def element_types(inp_path):
-    """Menge der Elementtypen aus den *ELEMENT-Karten, z. B. ["C3D10"]."""
+    """Set of element types from the *ELEMENT cards, e. g. ["C3D10"]."""
     typen = []
     if not inp_path or not os.path.isfile(inp_path):
         return typen

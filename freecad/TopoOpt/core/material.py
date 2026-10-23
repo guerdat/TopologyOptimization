@@ -12,7 +12,7 @@ The values in a material card come as text with a unit ("315 MPa",
 
 import re
 
-# Faktor auf MPa
+# factor to MPa
 EINHEITEN = {
     "gpa": 1000.0,
     "mpa": 1.0,
@@ -28,12 +28,12 @@ EINHEITEN = {
 
 ZAHL = re.compile(r"^\s*([-+0-9.eE,]+)\s*([A-Za-z0-9/().^*² ]*)\s*$")
 
-# Schluessel, die eine Streckgrenze enthalten koennen (Reihenfolge = Vorrang)
+# keys that may contain a yield strength (order = priority)
 SCHLUESSEL = ("YieldStrength", "UltimateTensileStrength", "CompressiveStrength")
 
 
 def MPa(wert):
-    """Eine Materialangabe in MPa umrechnen - oder None, wenn sie unbrauchbar ist."""
+    """Convert a material value to MPa - or None when it is unusable."""
     if isinstance(wert, (int, float)):
         return float(wert) or None
     if not isinstance(wert, str):
@@ -49,26 +49,26 @@ def MPa(wert):
     faktor = EINHEITEN.get(einheit)
     if faktor is None:
         if not einheit:
-            faktor = 1.0                 # ohne Einheit: als MPa lesen
+            faktor = 1.0                 # no unit: read as MPa
         else:
-            return None                  # unbekannte Einheit - lieber nichts vorschlagen
+            return None                  # unknown unit - better suggest nothing
     ergebnis = zahl * faktor
     return ergebnis if ergebnis > 0 else None
 
 
 def streckgrenze(materialien, elsets, aus_inp=None):
-    """Was das Material der Element-Sets hergibt.
+    """What the material of the element sets yields.
 
-    ``materialien`` ist eine Liste von ``(Name, Werte-Dict)`` (siehe
-    ``materialien_finden``), ``elsets`` die Menge der Element-Sets.
+    ``materialien`` is a list of ``(name, values dict)`` (see
+    ``materialien_finden``), ``elsets`` the set of element sets.
 
-    Zugeordnet wird zuerst ueber ``aus_inp`` - die Zuordnung Set -> Materialname,
-    die FreeCAD in die Eingabedatei schreibt (``*SOLID SECTION, ELSET=...,
-    MATERIAL=...``, siehe ``elsets.read_section_materials``).  Das ist die
-    Wahrheit: mit genau diesem Material rechnet CalculiX.  Nur wenn die
-    Eingabedatei (noch) keine Zuordnung hat, wird ueber den Namensanfang
-    zugeordnet ('MaterialSolid' gehoert zu 'MaterialSolidSolid'); gibt es nur ein
-    Material, gilt es fuer alle Sets ohne eigenes Material.
+    The mapping is made first through ``aus_inp`` - the assignment set -> material
+    name that FreeCAD writes into the input file (``*SOLID SECTION, ELSET=...,
+    MATERIAL=...``, see ``elsets.read_section_materials``).  That is the truth:
+    CalculiX computes with exactly this material.  Only when the input file has
+    no assignment (yet) is the mapping made through the name prefix
+    ('MaterialSolid' belongs to 'MaterialSolidSolid'); if there is only one
+    material, it applies to all sets without a material of their own.
 
     Returns {"<elset>": MPa}
     """
@@ -101,15 +101,15 @@ def streckgrenze(materialien, elsets, aus_inp=None):
 
 
 def fehlende_werte(materialien):
-    """Welche Werkstoffwerte fehlen, die CalculiX zum Rechnen braucht.
+    """Which material values that CalculiX needs for computing are missing.
 
-    ``materialien`` ist eine Liste von ``(Name, Werte-Dict)`` (siehe
-    ``materialien_finden``).  FreeCADs Eingabedatei-Schreiber bricht ohne E-Modul
-    mit einem nackten ``KeyError: 'YoungsModulus'`` ab und laesst dabei eine
-    halbfertige ``.inp`` zurueck.  Damit das vorher auffaellt, meldet diese
-    Funktion je Material, was fehlt.
+    ``materialien`` is a list of ``(name, values dict)`` (see
+    ``materialien_finden``).  FreeCAD's input file writer aborts without a
+    Young's modulus with a bare ``KeyError: 'YoungsModulus'`` and leaves a
+    half-finished ``.inp`` behind.  So that this stands out beforehand, this
+    function reports per material what is missing.
 
-    Returns ``{"<materialname>": ["YoungsModulus", ...]}``
+    Returns ``{"<material name>": ["YoungsModulus", ...]}``
     """
     fehlt = {}
     for name, werte in materialien:
@@ -123,11 +123,11 @@ def fehlende_werte(materialien):
 
 
 def materialien_finden(analyse):
-    """Die Materialobjekte des Modells als [(Name, Werte-Dict), ...].
+    """The material objects of the model as [(name, values dict), ...].
 
-    Sucht in der Analyse und - falls noetig - im ganzen Dokument (FreeCAD legt
-    Materialobjekte neben die Analyse).  Ohne Analyse wird das aktive Dokument
-    genommen, damit der Vorschlag auch ohne gewaehlte Analyse funktioniert.
+    Searches in the analysis and - if necessary - in the whole document (FreeCAD
+    places material objects next to the analysis).  Without an analysis the active
+    document is taken, so the suggestion also works without a selected analysis.
     """
     ergebnis = []
     kandidaten = []

@@ -39,7 +39,7 @@ class Spieler(object):
             return self._objekt
         obj = self.doc.getObject(self.objekt_name)
         if obj is None or not hasattr(obj, "Mesh"):
-            if obj is not None:                     # falscher Typ belegt den Namen
+            if obj is not None:                     # wrong type occupies the name
                 self.doc.removeObject(self.objekt_name)
             obj = self.doc.addObject("Mesh::Feature", self.objekt_name)
             obj.Label = self.label
@@ -47,7 +47,7 @@ class Spieler(object):
         return obj
 
     def zeigen(self, nummer, farbe=(0.80, 0.80, 0.84)):
-        """Iteration ``nummer`` (1-basiert) als Materialoberflaeche anzeigen."""
+        """Show iteration ``nummer`` (1-based) as a material surface."""
         nummer = max(1, min(self.anzahl, int(nummer)))
         zustand = self.zustaende[nummer - 1]
         flaechen = vtk_modul.randflaechen(self.zellen, zustand, self.punkte)

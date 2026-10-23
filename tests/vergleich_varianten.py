@@ -1,23 +1,23 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Leistungsvergleich: unveraendertes beso von GitHub gegen das gebuendelte beso.
+"""Performance comparison: unmodified beso from GitHub against the bundled beso.
 
-Gemessen wird auf **demselben Modell** die Vorbereitungszeit (Netz lesen,
-Volumen/Schwerpunkt, Elementgroessen, Nachbarschaftsgitter) und die Gesamtzeit
-eines Laufs.  Damit laesst sich zeigen, dass die Fixes des Addons die Rechnung
-weder veraendern noch verlangsamen.
+Measured on **the same model** are the preparation time (reading the mesh,
+volume/centre of gravity, element sizes, neighbourhood grid) and the total time of a
+run.  That shows that the addon's fixes neither change nor slow down the
+computation.
 
-Das Original zuerst klonen::
+Clone the original first::
 
     git clone --depth 1 https://github.com/calculix/beso.git
-    set BESO_ORIGINAL=C:\\Pfad\\zu\\beso-original      (Windows)
-    export BESO_ORIGINAL=/pfad/zu/beso-original        (Linux/macOS)
+    set BESO_ORIGINAL=C:\\path\\to\\beso-original      (Windows)
+    export BESO_ORIGINAL=/path/to/beso-original        (Linux/macOS)
 
-Aufruf (FreeCADs Python oder freecadcmd)::
+Call (FreeCAD's Python or freecadcmd)::
 
     python tests/vergleich_varianten.py [modell.inp] [elset]
 
-Ohne Argumente wird das groesste Netz aus den FreeCAD-Arbeitsordnern genommen.
-Schreibt ``vergleich_varianten.md`` neben das Skript.
+Without arguments the largest mesh from the FreeCAD working directories is used.
+Writes ``vergleich_varianten.md`` next to the script.
 """
 import glob
 import os
@@ -29,15 +29,15 @@ import time
 
 HIER = os.path.dirname(os.path.abspath(__file__))
 BERICHT = os.path.join(HIER, "vergleich_varianten.md")
-# Original-beso: geklonter upstream-Stand (siehe Modulbeschreibung)
+# original beso: cloned upstream state (see the module docstring)
 ORIGINAL = os.environ.get("BESO_ORIGINAL", os.path.join(tempfile.gettempdir(), "beso-original"))
-# gebuendelte Kopie des Addons (dieses Repo)
+# bundled copy of the addon (this repo)
 ADDON = os.path.join(os.path.dirname(HIER), "freecad", "TopoOpt", "beso")
 
 VARIANTEN = (("beso (GitHub, unveraendert)", ORIGINAL), ("beso im Addon", ADDON))
 
 def _python():
-    """Interpreter ohne FreeCAD-Start - beso braucht nur Python und numpy."""
+    """Interpreter without a FreeCAD start - beso needs only Python and numpy."""
     neben = os.path.join(os.path.dirname(sys.executable), "python.exe")
     return neben if os.path.isfile(neben) else sys.executable
 
@@ -59,7 +59,7 @@ def elset_aus_inp(pfad):
 
 
 def messung(beso_ordner, inp, elset):
-    """Eine beso-Kopie in eigenem Prozess messen (jede bringt eigene Module mit)."""
+    """Measure one beso copy in its own process (each brings its own modules)."""
     skript = os.path.join(HIER, "messung_beso.py")
     start = time.time()
     prozess = subprocess.run([PYTHON, skript, beso_ordner, inp, elset],

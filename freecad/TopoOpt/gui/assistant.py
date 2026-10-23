@@ -136,7 +136,7 @@ FARBE_AUFTRAG = "#b07000"     # the user has to do something
 FARBE_OK = "#2e7d32"          # everything is ready
 FARBE_GRAU = "#808080"        # side note (size and date of the file)
 FARBE_HINWEIS = "#b07000"      # orange note: something to decide
-_aktive_panels = {}          # Panel-Instanzen am Leben halten (sonst raeumt der GC sie ab)
+_aktive_panels = {}          # keep the panel instances alive (otherwise the GC collects them)
 
 
 def panel_for(name):
@@ -175,20 +175,20 @@ class AssistantPanel:
         self.domains = {}          # elset -> role (mirror of the document object)
         self.stress = {}           # elset -> allowable stress in MPa (0/empty = no FI)
         self.stress_moeglich = {}  # elset -> what the material would allow (MPa)
-        self.stress_aus = set()    # elset, bei dem das Feld bewusst geleert wurde
+        self.stress_aus = set()    # elset whose field was deliberately cleared
         self.elsets = {}           # elset -> number of elements
         self.analyse = None
         self.netz = None
         self.solver = None
         self._geschlossen = False
         self._schritt = 1
-        self._robust_daten = None      # Elementdaten aus der .inp (einmal holen)
-        self._robust_ergebnis = None   # Ergebnis der robusten Radius-Suche (einmal)
-        self._fuelle_laeuft = False    # beim Befuellen nicht neu rechnen
-        self._lauf_prozess = None      # der laufende beso-Prozess (oder None)
-        self._lauf_log = ""            # unser Log (CalculiX-Ausgabe)
-        self._lauf_beso_log = ""       # beso's Tabelle mit den Iterationswerten
-        self._lauf_beginn = 0.0        # Startzeit des Laufs
+        self._robust_daten = None      # element data from the .inp (fetched once)
+        self._robust_ergebnis = None   # result of the robust radius search (once)
+        self._fuelle_laeuft = False    # no recalculation while filling
+        self._lauf_prozess = None      # the running beso process (or None)
+        self._lauf_log = ""            # our log (CalculiX output)
+        self._lauf_beso_log = ""       # beso's table with the iteration values
+        self._lauf_beginn = 0.0        # start time of the run
 
         self.form = QtWidgets.QWidget()
         self.form.setWindowTitle(uebersetze("Topology Optimization"))
@@ -196,17 +196,17 @@ class AssistantPanel:
         aussen.setContentsMargins(8, 8, 8, 8)
         aussen.setSpacing(6)
 
-        # Die Schrittleiste steht oben und bleibt stehen, nur der
-        # Inhalt rollt in einem eigenen Bereich (der Rollbalken sitzt damit innen,
-        # nicht am ganzen Task-Panel), unten sind Zurueck und Weiter.
+        # the step bar sits on top and stays put, only the content scrolls in a
+        # separate area (so the scroll bar is on the inside, not on the whole
+        # task panel), back and next are at the bottom.
         self.schritt_label = QtWidgets.QLabel("")
         self.schritt_label.setTextFormat(QtCore.Qt.RichText)
         self.schritt_label.setWordWrap(True)
         aussen.addWidget(self.schritt_label)
 
-        # Jede Seite bekommt ihre eigene Rollflaeche: ein gemeinsamer Rollbereich
-        # waere immer so hoch wie die laengste Seite und zeigte deshalb auch in den
-        # kurzen Schritten einen Rollbalken (so war es zuerst).
+        # every page gets its own scroll area: a shared one would always be as tall
+        # as the longest page and would therefore show a scroll bar in the short
+        # steps too (that is how it was at first).
         self.seiten = QtWidgets.QStackedWidget()
         self.rollen = []
         seiten = [self._seite_initialisieren(), self._seite_parameter(),
@@ -237,10 +237,10 @@ class AssistantPanel:
 
     # ------------------------------------------------------------------ UI
     def _zeige_schritt(self, nummer):
-        """Zum Schritt wechseln: Text oben, Seite zeigen, Rollbalken nach oben.
+        """Switch to a step: text on top, show the page, scroll bar to the top.
 
-        Der aktuelle Schritt steht fett, die anderen grau - so sieht die Leiste
-        aus (der aktuelle Schritt fett, die anderen grau).
+        The current step is bold, the others grey - so the bar looks:
+        bold for the current step, grey for the others.
         """
         self._schritt = nummer
         self.seiten.setCurrentIndex(nummer - 1)
@@ -256,7 +256,7 @@ class AssistantPanel:
             self.rollen[nummer - 1].verticalScrollBar().setValue(0)
         except Exception:
             pass
-        # An den Raendern verschwindet der jeweilige Knopf
+        # at the edges the respective button disappears
         self.knopf_schritt_zurueck.setVisible(nummer > 1)
         self.knopf_schritt_weiter.setVisible(nummer < len(SCHRITTE))
 
@@ -285,7 +285,7 @@ class AssistantPanel:
         layout.addWidget(self.kopf)
         layout.addWidget(self._inp_bereich())
         layout.addWidget(self._domain_tabelle())
-        layout.addStretch(1)          # Leerraum darunter, nicht in der Tabelle
+        layout.addStretch(1)          # free space below, not inside the table
         return seite
 
     def _seite_parameter(self):
@@ -377,7 +377,7 @@ class AssistantPanel:
                                               "of the computer."))
         self.feld_kerne.valueChanged.connect(self._parameter_geaendert)
         form.addWidget(self.feld_kerne, zeile, 1)
-        layout.addWidget(rahmen)          # Optimierung
+        layout.addWidget(rahmen)          # optimization
 
         layout.addWidget(self._filter_bereich())
 
@@ -508,11 +508,11 @@ class AssistantPanel:
         zeile["radius_wert"].valueChanged.connect(self._filter_geaendert)
         layout.addWidget(zeile["radius_wert"])
 
-        # steht der berechnete Radius - oder "berechnen", solange keiner da ist
+        # the computed radius sits here - or "berechnen" as long as there is none
         zeile["radius_info"] = _KlickLabel("")
         zeile["radius_info"].setWordWrap(True)
-        # Ignored: das Feld bestimmt nicht die Mindestbreite des Panels (der Tooltip
-        # hat den vollen Text) - sonst waere das Panel wegen "berechnen" wieder breit
+        # ignored: the field does not determine the minimum width of the panel (the
+        # tooltip has the full text) - otherwise the panel would get wide again
         zeile["radius_info"].setSizePolicy(QtWidgets.QSizePolicy.Ignored,
                                            QtWidgets.QSizePolicy.Preferred)
         layout.addWidget(zeile["radius_info"], 1)
@@ -552,12 +552,12 @@ class AssistantPanel:
             zeile["richtung"].setVisible(casting)
             zeile["richtung"].setEnabled(casting)
             if aktiv and modus == "robust":
-                # der Knopf gehoert nur zu "robust"; "berechnen" im Feld tut dasselbe
+                # the button belongs only to "robust"; "berechnen" in the field does the same
                 zeile["pruefen"].setVisible(True)
                 if self._robust_ergebnis is not None:
                     self._radius_anzeige(zeile)
                 elif self.obj.RobusterRadius > 0:
-                    # beim Oeffnen des Dialogs nicht rechnen - den gemerkten Wert zeigen
+                    # no calculation when the dialog opens - show the remembered value
                     self._radius_text(zeile, "%.3f mm" % self.obj.RobusterRadius, FARBE_GRAU,
                                       uebersetze("%.3f mm (saved value from the last check)")
                                       % self.obj.RobusterRadius)
@@ -570,16 +570,16 @@ class AssistantPanel:
         self.obj.Filters = format_filters(self._sammle_filter())
 
     def _radius_text(self, zeile, text, farbe, tooltip=""):
-        """Text, Farbe und Tooltip des Radius-Feldes an einer Filterzeile setzen."""
+        """Set text, colour and tooltip of the radius field at a filter row."""
         zeile["radius_info"].setText(text)
         zeile["radius_info"].setStyleSheet("color: %s;" % farbe if farbe else "")
         zeile["radius_info"].setToolTip(tooltip)
 
     def _robusten_radius(self):
-        """Der robuste Radius, gerechnet von beso (siehe core/radius.py).
+        """The robust radius, computed by beso (see core/radius.py).
 
-        Die Elementdaten werden nur einmal geholt und gemerkt - das Lesen der .inp
-        und die Nachbarsuche dauern bei feinen Netzen einige Sekunden.
+        The element data is fetched and remembered only once - reading the .inp
+        and the neighbour search take a few seconds on fine meshes.
         """
         if self._robust_daten is None:
             daten = {}
@@ -596,10 +596,10 @@ class AssistantPanel:
         return ergebnis
 
     def _pruefe_radius(self, zeile):
-        """Der Knopf an der Filterzeile: robusten Radius neu rechnen und anzeigen.
+        """The button at the filter row: recompute the robust radius and show it.
 
-        Die Rechnung dauert bei feinen Netzen ein paar Sekunden, deshalb startet sie
-        ein Klick (und nicht das Oeffnen des Dialogs).
+        The calculation takes a few seconds on fine meshes, which is why a click
+        starts it (and not the opening of the dialog).
         """
         self._robust_daten = None
         self._robust_ergebnis = None
@@ -630,7 +630,7 @@ class AssistantPanel:
         self.obj.Filters = format_filters(self._sammle_filter())
 
     def _radius_anzeige(self, zeile):
-        """Ergebnis der Radius-Pruefung an die Filterzeile schreiben (kurz + Tooltip)."""
+        """Write the result of the radius check to the filter row (short text + tooltip)."""
         if not self._robust_ergebnis:
             self._radius_text(zeile, uebersetze("calculate"), FARBE_AUFTRAG,
                               uebersetze("Check the robust filter radius now"))
@@ -681,7 +681,7 @@ class AssistantPanel:
         layout = QtWidgets.QVBoxLayout(seite)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # --- rechnen: starten, abbrechen, Fortschritt, Details ---
+        # --- computing: start, cancel, progress, details ---
         rahmen_lauf = QtWidgets.QGroupBox(uebersetze("Calculate"))
         lauf = QtWidgets.QVBoxLayout(rahmen_lauf)
 
@@ -692,23 +692,23 @@ class AssistantPanel:
         self.knopf_lauf.clicked.connect(self._lauf_knopf)
         zeile.addWidget(self.knopf_lauf)
         zeile.addStretch(1)
-        # die Laufzeit steht rechts neben dem Knopf - sie gehoert zum Lauf, nicht ins Panel
+        # the runtime sits right of the button - it belongs to the run, not to the panel
         self.lauf_zeit = QtWidgets.QLabel("")
         self.lauf_zeit.setToolTip(uebersetze("How long the solver has been running"))
         self.lauf_zeit.setStyleSheet("color: gray;")
         zeile.addWidget(self.lauf_zeit)
         lauf.addLayout(zeile)
 
-        # Fortschritt: 0 % = Startmasse, 100 % = Zielmasse
+        # progress: 0 % = start mass, 100 % = target mass
         self.balken = QtWidgets.QProgressBar()
         self.balken.setRange(0, 100)
         self.balken.setValue(0)
         self.balken.setToolTip(uebersetze("0 % = the whole part, 100 % = the target mass"))
         lauf.addWidget(self.balken)
 
-        # ausklappbares Feld fuer die letzten Logzeilen ("Detail") - gehoert zum Rechnen.
-        # Der Status steht in derselben Zeile: eine eigene Zeile waere unsichtbar leer,
-        # solange nichts laeuft (sonst bleibt eine leere Zeile stehen).
+        # collapsible field for the last log lines ("Detail") - belongs to computing.
+        # The status sits in the same line: a line of its own would be invisibly empty
+        # as long as nothing runs (otherwise an empty line would remain).
         kopf_zeile = QtWidgets.QHBoxLayout()
         self.knopf_detail = QtWidgets.QToolButton()
         self.knopf_detail.setText(uebersetze("Details"))
@@ -719,8 +719,8 @@ class AssistantPanel:
         kopf_zeile.addWidget(self.knopf_detail)
         self.lauf_status = _label_wrap("")
         self.lauf_status.setStyleSheet("color: gray;")
-        # dem Label den Rest der Zeile geben: sonst bekommt es nur seine (kleine)
-        # Wunschbreite, obwohl rechts Platz ist, und bricht auf zwei Zeilen um
+        # give the label the rest of the line: otherwise it only gets its (small)
+        # preferred width although there is room on the right, and wraps onto two lines
         kopf_zeile.addWidget(self.lauf_status, 1)
         lauf.addLayout(kopf_zeile)
 
@@ -733,13 +733,13 @@ class AssistantPanel:
         lauf.addWidget(self.detail)
         layout.addWidget(rahmen_lauf)
 
-        # --- die Ergebnisse: Netz und Diagramme ---
+        # --- the results: mesh and charts ---
         rahmen_erg = QtWidgets.QGroupBox(uebersetze("Results"))
         erg = QtWidgets.QVBoxLayout(rahmen_erg)
 
-        # die vier Knoepfe bilden ein 2x2-Raster:
-        #   Ergebnisnetz laden | Diagramme anzeigen
-        #   Vollstaendiges Log | Arbeitsverzeichnis oeffnen
+        # the four buttons form a 2x2 grid:
+        #   load result mesh | show charts
+        #   full log         | open working directory
         raster = QtWidgets.QGridLayout()
         raster.setSpacing(6)
         self.knopf_netz = QtWidgets.QPushButton(uebersetze("Load result network"))
@@ -765,7 +765,7 @@ class AssistantPanel:
         raster.setColumnStretch(1, 1)
         erg.addLayout(raster)
 
-        # "Iterationen anzeigen" (VTK-Player) gehoert zum Schieberegler darunter
+        # "Iterationen anzeigen" (VTK player) belongs to the slider below
         self.knopf_ergebnis = QtWidgets.QPushButton(uebersetze("Show iterations"))
         self.knopf_ergebnis.setToolTip(uebersetze("Reads resulting_states.vtk and shows the "
                                                  "material that is left in the part "
@@ -793,12 +793,12 @@ class AssistantPanel:
         self.knopf_abspielen.setToolTip(uebersetze("Show one iteration after the other"))
         self.knopf_abspielen.clicked.connect(self._ergebnis_abspielen)
         for knopf in (self.knopf_zurueck, self.knopf_vor, self.knopf_abspielen):
-            # FreeCADs Style gibt jedem Knopf eine Mindestbreite von rund 106 px -
-            # mehrere Widgets nebeneinander sprengen das schmale Panel (gemessen: 396 px).
-            # Fuer diese kleinen Knoepfe gilt die Vorgabe nicht.
+            # FreeCAD's style gives every button a minimum width of about 106 px -
+            # several widgets side by side blow up the narrow panel (measured: 396 px).
+            # For these small buttons the default does not apply.
             knopf.setStyleSheet("min-width: 0px; padding: 2px 6px;")
             zeile.addWidget(knopf)
-        # die Abspielgeschwindigkeit gehoert zu den Steuerknoepfen
+        # the playback speed belongs to the control buttons
         self.cmb_takt = QtWidgets.QComboBox()
         self.cmb_takt.addItems([uebersetze("0.5 s"), uebersetze("1 s"),
                                 uebersetze("2 s"), uebersetze("3 s")])
@@ -808,7 +808,7 @@ class AssistantPanel:
         zeile.addWidget(self.cmb_takt)
         erg.addLayout(zeile)
 
-        # der Schieberegler steht allein in seiner Zeile und bekommt die volle Breite
+        # the slider stands alone in its line and gets the full width
         erg.addWidget(self.ergebnis_slider)
 
         self.ergebnis_info = _label_wrap("")
@@ -819,17 +819,17 @@ class AssistantPanel:
         layout.addStretch(1)
 
         self.verlauf = Verlauf(zielmasse=getattr(self.obj, "MassGoalRatio", None))
-        self.spieler = None                    # VTK-Player, sobald Ergebnisse geladen sind
+        self.spieler = None                    # VTK player as soon as results are loaded
         self.lauf_timer = QtCore.QTimer()
         self.lauf_timer.setInterval(1500)
         self.lauf_timer.timeout.connect(self._lauf_aktualisieren)
         self.ergebnis_timer = QtCore.QTimer()
-        self.ergebnis_timer.setInterval(500)     # 0,5 s je Bild
+        self.ergebnis_timer.setInterval(500)     # 0.5 s per frame
         self.ergebnis_timer.timeout.connect(lambda: self._ergebnis_schritt(1, vom_timer=True))
         return seite
 
     def _verlauf_anzeigen(self):
-        """Das Fenster mit den vier Diagrammen oeffnen (oder nach vorn holen)."""
+        """Open the window with the four charts (or bring it to the front)."""
         fenster = self.verlauf.anzeigen()
         if fenster is None:
             self._setze_status(uebersetze("The plot module of FreeCAD is not available - "
@@ -838,13 +838,13 @@ class AssistantPanel:
         return fenster
 
     def _ergebnis_pfad(self):
-        """Die Datei mit den Iterationen im Arbeitsordner des Laufs.
+        """The file with the iterations in the working directory of the run.
 
-        Ist der Lauf fertig, liegt dort ``resulting_states.vtk`` mit **allen**
-        Iterationen.  Waehrend des Laufs schreibt beso je gespeicherter Iteration ein
-        ``fileNNN.vtk`` (jedes mit einem Teil der Zustaende) - die neueste davon zeigt
-        den aktuellen Zwischenstand.  Sortiert wird nach Aenderungszeit, nicht
-        alphabetisch: sonst gewinnt die hoechste Nummer eines frueheren Laufs.
+        When the run is finished, ``resulting_states.vtk`` with **all** iterations
+        lies there.  During the run beso writes one ``fileNNN.vtk`` per saved
+        iteration (each with a part of the states) - the newest of them shows the
+        current intermediate state.  Sorting is by modification time, not
+        alphabetically: otherwise the highest number of an earlier run wins.
         """
         ordner = getattr(self.obj, "WorkingDir", "")
         if not ordner:
@@ -860,17 +860,17 @@ class AssistantPanel:
 
     @staticmethod
     def _ist_endstand(pfad):
-        """True, wenn es das vollstaendige Ergebnis ist (nicht eine Zwischenstufe)."""
+        """True when it is the complete result (not an intermediate state)."""
         return os.path.basename(pfad) == "resulting_states.vtk"
 
     @staticmethod
     def _ergebnis_iteration(pfad):
-        """Die Iterationsnummer aus dem Dateinamen (file030.vtk -> 30, sonst 0)."""
+        """The iteration number from the file name (file030.vtk -> 30, otherwise 0)."""
         ziffern = "".join(z for z in os.path.basename(pfad) if z.isdigit())
         return int(ziffern) if ziffern else 0
 
     def _ergebnisse_aktualisieren(self):
-        """Ist schon ein Ergebnis da?  Dann den Knopf freigeben und den Zustand zeigen."""
+        """Is a result there already?  Then enable the button and show the state."""
         pfad = self._ergebnis_pfad()
         da = bool(pfad) and os.path.isfile(pfad)
         self.knopf_ergebnis.setEnabled(da)
@@ -885,18 +885,18 @@ class AssistantPanel:
                 self.ergebnis_info.setText(uebersetze("resulting_states.vtk is there - "
                                                      "'Show iterations' reads it."))
             else:
-                # Zwischenstand: waehrend des Laufs schreibt beso je gespeicherter
-                # Iteration eine eigene Datei mit einem Teil der Zustaende
+                # intermediate state: during the run beso writes one file per saved
+                # iteration with a part of the states
                 self.ergebnis_info.setText(
                     uebersetze("Interim result of iteration %d - 'Show iterations' reads it. "
                                "The complete result is written when the run is finished.")
                     % self._ergebnis_iteration(pfad))
 
     def _ergebnisnetz_laden(self):
-        """Das echte Ergebnisnetz der letzten Iteration als FEM-Netz laden.
+        """Load the real result mesh of the last iteration as an FEM mesh.
 
-        Das ist besos Zustandsdatei state1 (Elemente mit Material), importiert mit
-        FreeCADs eigenem FEM-Import - zum Weiterarbeiten, nicht nur zum Ansehen.
+        This is beso's state file state1 (elements with material), imported with
+        FreeCAD's own FEM import - to keep working with, not just to look at.
         """
         ordner = getattr(self.obj, "WorkingDir", "")
         datei = netz_modul.neueste_state1(ordner)
@@ -916,15 +916,15 @@ class AssistantPanel:
         return datei
 
     def _ergebnis_knopf(self):
-        """Knopf 'Ergebnis laden': die Datei neu einlesen und das fertige Netz zeigen.
+        """Button 'load result': read the file again and show the finished mesh.
 
-        Bewusst neu einlesen - nach einem weiteren Lauf ist die Datei eine andere.
+        Deliberately re-read - after another run the file is a different one.
         """
         self.spieler = None
         return self._ergebnis_anzeigen()
 
     def _ergebnis_anzeigen(self):
-        """resulting_states.vtk einlesen und die letzte Iteration zeigen."""
+        """Read resulting_states.vtk and show the last iteration."""
         pfad = self._ergebnis_pfad()
         if not pfad or not os.path.isfile(pfad):
             self.ergebnis_info.setText(uebersetze("No resulting_states.vtk in the working "
@@ -940,12 +940,12 @@ class AssistantPanel:
                                            % exc)
                 return None
             self.ergebnis_slider.setRange(1, self.spieler.anzahl)
-            self.ergebnis_slider.setValue(self.spieler.anzahl)   # letzte Iteration
+            self.ergebnis_slider.setValue(self.spieler.anzahl)   # last iteration
         self._ergebnis_zeigen(self.ergebnis_slider.value())
         return self.spieler
 
     def _ergebnis_zeigen(self, nummer):
-        """Iteration ``nummer`` anzeigen (vom Schieberegler oder vom Timer)."""
+        """Show iteration ``nummer`` (from the slider or from the timer)."""
         if self.spieler is None:
             return
         daten = self.spieler.zeigen(nummer)
@@ -960,7 +960,7 @@ class AssistantPanel:
                "{:,}".format(daten["gesamt"]).replace(",", "."), daten["prozent"]))
 
     def _ergebnis_schritt(self, richtung, vom_timer=False):
-        """Eine Iteration weiter oder zurueck."""
+        """One iteration forward or back."""
         if self.spieler is None:
             if vom_timer:
                 self._ergebnis_abspielen(False)
@@ -968,12 +968,12 @@ class AssistantPanel:
         neu = self.ergebnis_slider.value() + richtung
         if neu > self.spieler.anzahl or neu < 1:
             if vom_timer:
-                self._ergebnis_abspielen(False)      # am Ende angekommen
+                self._ergebnis_abspielen(False)      # reached the end
             return
         self.ergebnis_slider.setValue(neu)
 
     def _takt_geaendert(self, *_):
-        """Die Pause zwischen zwei Bildern aus der Auswahl uebernehmen."""
+        """Take the pause between two frames from the choice."""
         takt = self.cmb_takt.currentText().replace(",", ".").replace(" s", "").strip()
         try:
             self.ergebnis_timer.setInterval(int(float(takt) * 1000))
@@ -981,14 +981,14 @@ class AssistantPanel:
             self.ergebnis_timer.setInterval(500)
 
     def _ergebnis_abspielen(self, an=None):
-        """Alle Iterationen nacheinander zeigen."""
+        """Show all iterations one after the other."""
         if an is None:
             an = self.knopf_abspielen.isChecked()
         if an and self.spieler is None:
             self._ergebnis_anzeigen()
         if an and self.spieler is not None:
             if self.ergebnis_slider.value() >= self.spieler.anzahl:
-                self.ergebnis_slider.setValue(1)      # von vorn
+                self.ergebnis_slider.setValue(1)      # from the start
             self.knopf_abspielen.setChecked(True)
             self.knopf_abspielen.setText(uebersetze("Stop"))
             self.ergebnis_timer.start()
@@ -998,7 +998,7 @@ class AssistantPanel:
             self.knopf_abspielen.setText(uebersetze("Play"))
 
     def _log_pfad(self):
-        """Unsere Logdatei - aus dem Lauf oder aus der Eingabedatei abgeleitet."""
+        """Our log file - taken from the run or derived from the input file."""
         if self._lauf_log and os.path.isfile(self._lauf_log):
             return self._lauf_log
         inp = getattr(self.obj, "InpFile", "")
@@ -1009,7 +1009,7 @@ class AssistantPanel:
         return ""
 
     def _log_oeffnen(self):
-        """Das vollstaendige Log im Standardprogramm oeffnen."""
+        """Open the complete log in the default program."""
         pfad = self._log_pfad()
         if not pfad:
             self.ergebnis_info.setText(uebersetze("There is no log file yet."))
@@ -1032,9 +1032,9 @@ class AssistantPanel:
             self._detail_fuellen()
             self._lauf_aktualisieren()
 
-    # ------------------------------------------------------------ der Lauf
+    # ------------------------------------------------------------- the run
     def _lauf_knopf(self):
-        """Ein Knopf: starten, und waehrend des Laufs abbrechen."""
+        """One button: start, and cancel while the run goes on."""
         if self._lauf_prozess is not None and self._lauf_prozess.poll() is None:
             self._lauf_abbrechen()
         else:
@@ -1042,8 +1042,8 @@ class AssistantPanel:
 
     def _lauf_starten(self):
         if not self.obj.InpFile or not os.path.isfile(self.obj.InpFile):
-            # erst den Schritt zeigen, dann die Meldung: der Wechsel zu Schritt 1
-            # schreibt die .inp-Info in dieselbe Zeile und wuerde sie sonst loeschen
+            # show the step first, then the message: switching to step 1 writes the
+            # .inp info into the same line and would otherwise delete it
             self._zeige_schritt(1)
             self._setze_status(uebersetze("There is no input file yet - see step 1."), "fehler")
             return
@@ -1057,7 +1057,7 @@ class AssistantPanel:
                                                    self.obj.WorkingDir or
                                                    os.path.dirname(self.obj.InpFile))
         except Exception as exc:
-            # auch die Meldung des Fehlers uebersetzen - sie kommt aus dem core
+            # translate the error message too - it comes from the core
             self._setze_status(uebersetze("The run could not be started: %s")
                                % uebersetze(str(exc)), "fehler")
             return
@@ -1071,13 +1071,13 @@ class AssistantPanel:
         self.verlauf._start_zeit = self._lauf_beginn
         self.balken.setValue(0)
         self.lauf_zeit.setText("0:00 min")
-        self.spieler = None                    # ein neuer Lauf hat neue Ergebnisse
+        self.spieler = None                    # a new run has new results
         self.ergebnis_slider.setRange(1, 1)
         self._ergebnisse_aktualisieren()
         self.knopf_lauf.setText(uebersetze("Cancel"))
         self.knopf_lauf.setToolTip(uebersetze("Stop the run (CalculiX is stopped as well)"))
         self._setze_status(uebersetze("Run started (%s) ...") % os.path.basename(conf), "info")
-        self._verlauf_anzeigen()      # Diagramme oeffnen immer beim Start
+        self._verlauf_anzeigen()      # charts always open on start
         self.lauf_timer.start()
         self._lauf_aktualisieren()
 
@@ -1087,7 +1087,7 @@ class AssistantPanel:
             return
         try:
             if os.name == "nt":
-                # /T beendet auch CalculiX, das beso gestartet hat
+                # /T also ends CalculiX, which beso started
                 subprocess.run(["taskkill", "/F", "/T", "/PID", str(prozess.pid)],
                                capture_output=True)
             else:
@@ -1098,10 +1098,10 @@ class AssistantPanel:
         self._lauf_aktualisieren()
 
     def _lauf_aktualisieren(self):
-        """Vom Timer aufgerufen: Logdateien lesen, Anzeige nachfuehren (nichts blockiert)."""
+        """Called by the timer: read the log files, follow up the display (nothing blocks)."""
         if not self._lauf_log:
             return
-        # die Werte stehen in beso's eigener Tabelle, die letzten Zeilen in unserem Log
+        # the values are in beso's own table, the last lines in our log
         daten = logdatei.fortschritt(self._lauf_beso_log,
                                      getattr(self.obj, "MassGoalRatio", None))
         self.verlauf.setze_werte(daten["werte"])
@@ -1125,12 +1125,12 @@ class AssistantPanel:
             self.lauf_zeit.setText("%d:%02d min" % (sekunden // 60, sekunden % 60))
         if teile:
             self.lauf_status.setText(" | ".join(teile))
-        # leere Statuszeile kostet nur Platz
+        # an empty status line only costs space
         self.lauf_status.setVisible(bool(teile))
 
-        # waehrend des Laufs den letzten Zwischenstand freigeben: beso schreibt alle
-        # paar Iterationen ein fileNNN.vtk - der Ergebnis-Knopf muss nicht bis zum
-        # Ende des Laufs warten
+        # release the last intermediate state during the run: beso writes a
+        # fileNNN.vtk every few iterations - the result button does not have to wait
+        # for the end of the run
         if laeuft:
             self._ergebnisse_aktualisieren()
 
@@ -1151,13 +1151,13 @@ class AssistantPanel:
                 self._setze_status(uebersetze("Optimization finished after %d iteration(s).")
                                    % daten["iteration"], "ok")
                 self._ergebnisse_aktualisieren()
-                self._ergebnis_anzeigen()          # fertiges Netz gleich zeigen
+                self._ergebnis_anzeigen()          # show the finished mesh right away
             else:
                 self._setze_status(uebersetze("The run ended (code %s) - open the details.")
                                    % code, "fehler")
-                # aufklappen und den Text EINMAL fuellen: ein Aufruf von
-                # _detail_umschalten() wuerde von dort wieder _lauf_aktualisieren()
-                # aufrufen und im Fehlerfall endlos kreisen (RecursionError)
+                # expand and fill the text ONCE: a call of _detail_umschalten() would from
+                # there call _lauf_aktualisieren() again and circle endlessly on an error
+                # (RecursionError)
                 if not self.knopf_detail.isChecked():
                     self.knopf_detail.setChecked(True)
                     self.detail.setVisible(True)
@@ -1165,7 +1165,7 @@ class AssistantPanel:
                 self._detail_fuellen()
 
     def _detail_fuellen(self):
-        """Die letzten Zeilen des eigenen Protokolls ins Detailfeld schreiben."""
+        """Write the last lines of our own protocol into the detail field."""
         if not self._lauf_log:
             return
         text = logdatei.verlauf_lesen(self._lauf_log)["text"]
@@ -1214,14 +1214,14 @@ class AssistantPanel:
         return rahmen
 
     def _pruefe_inp(self):
-        """Klar melden, wenn mit der Eingabedatei nicht gerechnet werden kann.
+        """Report clearly when the input file cannot be used for a run.
 
-        Zwei Faelle, die sonst erst beso meldet - und dort unverstaendlich
-        ("CalculiX results not found"):
+        Two cases that otherwise only beso reports - and there in a way that is
+        hard to understand ("CalculiX results not found"):
 
-        * die Datei ist beim Schreiben abgebrochen (kein *MATERIAL/*STEP/*BOUNDARY),
-        * ein Element-Set hat keine Section-Karte, CalculiX rechnet seine Elemente
-          also ohne Material und laesst sie weg.
+        * the file was cut off while writing (no *MATERIAL/*STEP/*BOUNDARY),
+        * an element set has no section card, so CalculiX computes its elements
+          without material and leaves them out.
         """
         if not hasattr(self, "hinweis_inp"):
             return
@@ -1234,8 +1234,8 @@ class AssistantPanel:
             teile.append(uebersetze("CalculiX has no material for these element sets (no section "
                                     "card): %s - their elements are left out of the calculation.")
                          % ", ".join(ergebnis["ohne_material"]))
-        # Material ohne E-Modul: FreeCAD bricht beim Schreiben ab und laesst eine
-        # halbfertige .inp zurueck - das muss vorher auffallen, nicht als KeyError
+        # material without a Young's modulus: FreeCAD aborts while writing and leaves
+        # a half-finished .inp behind - this has to be noticed here, not as a KeyError
         fehlend = material_modul.fehlende_werte(material_modul.materialien_finden(self.analyse))
         if fehlend:
             teile.append(uebersetze("These materials are missing values CalculiX needs: %s - "
@@ -1260,12 +1260,12 @@ class AssistantPanel:
         kopf.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
         kopf.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeToContents)
         layout.addWidget(self.tabelle)
-        # welche Domain welche Schalendicke bekommt (aus der .inp, nicht geraten)
+        # which domain gets which shell thickness (from the .inp, not guessed)
         self.hinweis_dicke = _label_wrap("")
         self.hinweis_dicke.setStyleSheet("color: gray;")
         self.hinweis_dicke.setVisible(False)
         layout.addWidget(self.hinweis_dicke)
-        # ohne zulaessige Spannung gibt es keinen Failure-Index - das muss man sehen
+        # without an allowable stress there is no failure index - that has to be visible
         self.hinweis_stress = _label_wrap("")
         self.hinweis_stress.setStyleSheet("color: %s;" % FARBE_HINWEIS)
         self.hinweis_stress.setVisible(False)
@@ -1273,11 +1273,11 @@ class AssistantPanel:
         return rahmen
 
     def _zeige_stress_hinweis(self):
-        """Rot/orange unter der Liste: ohne σ kein Failure-Index."""
+        """Red/orange below the list: without σ there is no failure index."""
         if not hasattr(self, "hinweis_stress"):
             return
-        # ignorierte Sets spielen fuer die Optimierung keine Rolle - sie brauchen
-        # auch keine zulaessige Spannung und werden hier nicht gemeldet
+        # ignored element sets do not matter for the optimization - they need no
+        # allowable stress either and are not reported here
         aktiv = dom.aktive(self.domains)
         ohne = [name for name in sorted(self.elsets)
                 if name in aktiv and name not in self.stress]
@@ -1287,9 +1287,9 @@ class AssistantPanel:
         mit = [name for name in sorted(self.elsets)
                if name in aktiv and name in self.stress]
         if mit:
-            # beso bildet je Domain ein FI_max und bricht ab, wenn eine Domain kein
-            # Kriterium hat - sobald irgendwo eine zulaessige Spannung steht, brauchen
-            # sie alle.  Das ist ein Abbruchgrund, deshalb rot.
+            # beso forms one FI_max per domain and aborts when a domain has no
+            # criterion - as soon as an allowable stress is set anywhere, all of them
+            # need one.  That is a reason to abort, hence red.
             self.hinweis_stress.setText(
                 uebersetze("The failure index needs an allowable stress in EVERY domain - "
                            "still missing in: %s. The run stops without it.")
@@ -1310,7 +1310,7 @@ class AssistantPanel:
         self.hinweis_stress.setText(text)
         self.hinweis_stress.setVisible(True)
 
-    # --------------------------------------------------------------- Daten
+    # ---------------------------------------------------------------- data
     def _setze_kopf(self):
         """Header line: every part of the analysis case - present in green, missing in red."""
         teile = []
@@ -1398,8 +1398,8 @@ class AssistantPanel:
         self.stress = dom.parse_stress(getattr(self.obj, "StressLimits", []))
         self.stress_aus = dom.aus_stress(getattr(self.obj, "StressLimits", []))
         if gespeichert:
-            # neue Sets (nach einer Modellaenderung) sind wieder Design-Raum -
-            # "ignorieren" ist die Ausnahme, die man bewusst setzt
+            # new element sets (after a model change) are design space again -
+            # "ignorieren" is the exception that is set on purpose
             self.domains = dom.rollen_fuer(self.elsets, gespeichert)
         else:
             self.domains = dom.rollen_fuer(self.elsets)
@@ -1410,11 +1410,11 @@ class AssistantPanel:
         self.obj.Document.recompute()
 
     def _vorschlag_aus_material(self):
-        """Aus dem Material **merken**, welche zulaessige Spannung moeglich waere.
+        """Remember from the material which allowable stress would be possible.
 
-        Die Spalte σ bleibt von Haus aus leer: wer keine zulaessige Spannung
-        eintraegt, rechnet ohne Failure-Index (und soll das bewusst tun).  Damit
-        die Zahl trotzdem zur Hand ist, steht sie im Hinweis unter der Liste.
+        The σ column stays empty by default: whoever enters no allowable stress
+        computes without a failure index (and should do so on purpose).  So that
+        the number is still at hand, it stands in the hint below the list.
         """
         fehlend = [name for name in self.elsets
                    if name in dom.aktive(self.domains) and name not in self.stress]
@@ -1453,7 +1453,7 @@ class AssistantPanel:
             anzahl = QtWidgets.QTableWidgetItem("{:,}".format(self.elsets[name]).replace(",", "."))
             anzahl.setTextAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
             self.tabelle.setItem(zeile, 2, anzahl)
-            # zulaessige Spannung (MPa) - leer lassen heisst: ohne Auslastungs-Index
+            # allowable stress (MPa) - leaving it empty means: no failure index
             sigma = QtWidgets.QLineEdit()
             sigma.setValidator(QtGui.QDoubleValidator(0.0, 100000.0, 2, sigma))
             sigma.setPlaceholderText("–")
@@ -1474,11 +1474,11 @@ class AssistantPanel:
         self._tabelle_hoehe_anpassen()
 
     def _tabelle_hoehe_anpassen(self):
-        """Die Domain-Tabelle so hoch wie ihr Inhalt.
+        """The domain table as tall as its content.
 
-        Ohne das dehnt sie sich ueber den ganzen Platz (Stretch) und der Schritt
-        sieht aus, als sei er leer.  Ab zwoelf Zeilen bleibt sie stehen und rollt
-        innen - sonst waechst sie bei vielen Element-Sets endlos.
+        Without that it stretches over the whole space (stretch) and the step looks
+        as if it were empty.  From twelve rows on it stays put and scrolls inside -
+        otherwise it grows endlessly with many element sets.
         """
         kopf = self.tabelle.horizontalHeader().height()
         zeilen = sum(self.tabelle.rowHeight(r) for r in range(self.tabelle.rowCount()))
@@ -1503,7 +1503,7 @@ class AssistantPanel:
             if text:
                 self.stress_aus.discard(elset)
             else:
-                self.stress_aus.add(elset)     # bewusst leer - kein Vorschlag mehr
+                self.stress_aus.add(elset)     # deliberately empty - no more suggestion
         self.obj.StressLimits = dom.format_stress(self.stress, self.stress_aus)
         self._zeige_stress_hinweis()
         if wert > 0:
@@ -1525,7 +1525,7 @@ class AssistantPanel:
     def _speichere_domains(self):
         self.obj.Domains = dom.format_domains(self.domains)
 
-    # -------------------------------------------------------------- Aktionen
+    # ------------------------------------------------------------- actions
     def _inp_erzeugen(self):
         """Write a new input file - only on an explicit click (can take seconds)."""
         if self.analyse is None or self.netz is None or self.solver is None:
@@ -1566,7 +1566,7 @@ class AssistantPanel:
                 self._setze_status(uebersetze("The directory could not be opened (%s): %s")
                                    % (exc, ordner), "fehler")
 
-    # ------------------------------------------------- Schritt 2: Parameter
+    # -------------------------------------------------- step 2: parameters
     def _masse_geaendert(self, wert):
         """Slider and spin box show the same value, the object stores the fraction."""
         for widget in (self.slider_masse, self.feld_masse):
@@ -1626,7 +1626,7 @@ class AssistantPanel:
         self.status.setStyleSheet("color: %s;" % farbe if farbe else "")
         QtWidgets.QApplication.processEvents()
 
-    # ------------------------------------------------------ Task-Panel-API
+    # ------------------------------------------------------ task panel API
     def getStandardButtons(self):
         # .value because an int is expected (PySide6: the enum cannot be cast with int())
         return QtWidgets.QDialogButtonBox.Ok.value | QtWidgets.QDialogButtonBox.Close.value
@@ -1637,7 +1637,7 @@ class AssistantPanel:
             return
         self._geschlossen = True
         try:
-            self.lauf_timer.stop()      # der Lauf selbst laeuft weiter
+            self.lauf_timer.stop()      # the run itself keeps going
             self.ergebnis_timer.stop()
             self.verlauf.schliessen()
         except Exception:

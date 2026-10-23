@@ -24,11 +24,11 @@ SAMMELSETS = ("eall", "all_available", "evolumes", "efaces", "eedges", "enodes")
 
 
 def aktive(domains):
-    """Die Domains, die in der Optimierung vorkommen.
+    """The domains that take part in the optimization.
 
-    "ignore" heisst: diese Elemente spielen fuer die Optimierung keine Rolle.
-    Solche Sets kommen nicht in die beso-Konfiguration - sie brauchen dann auch
-    keine zulaessige Spannung und werden nicht ausgewertet.
+    "ignore" means: these elements play no role for the optimization.
+    Such sets do not go into the beso configuration - then they need no
+    allowable stress either and are not evaluated.
     """
     return {name: rolle for name, rolle in (domains or {}).items() if rolle != IGNORE}
 
@@ -47,7 +47,7 @@ def parse_domains(werte):
 
 
 def format_domains(domains):
-    """{"set": "design"} -> ["set|design", ...] (stabile Reihenfolge)."""
+    """{"set": "design"} -> ["set|design", ...] (stable order)."""
     return ["%s|%s" % (name, domains[name]) for name in sorted(domains)]
 
 
@@ -69,10 +69,10 @@ def parse_stress(werte):
 
 
 def format_stress(limits, aus=None):
-    """{"set": 235.0} -> ["set|235.0", ...] (stabile Reihenfolge).
+    """{"set": 235.0} -> ["set|235.0", ...] (stable order).
 
-    ``aus`` sind Sets mit **bewusst** leerem Feld: sie werden als "<set>|0"
-    gespeichert, damit der Vorschlag aus dem Material nicht wieder auftaucht.
+    ``aus`` are the sets with a **deliberately** empty field: they are stored as
+    "<set>|0" so that the suggestion from the material does not reappear.
     """
     ergebnis = ["%s|%r" % (name, limits[name]) for name in sorted(limits)]
     ergebnis += ["%s|0" % name for name in sorted(set(aus or ()) - set(limits))]
@@ -80,7 +80,7 @@ def format_stress(limits, aus=None):
 
 
 def aus_stress(werte):
-    """Die als "<set>|0" gespeicherten Sets (bewusst ohne Spannung)."""
+    """The sets stored as "<set>|0" (deliberately without stress)."""
     ergebnis = set()
     for eintrag in werte or []:
         if "|" not in eintrag:
@@ -112,11 +112,11 @@ def vorschlag(elsets):
 
 
 def rollen_fuer(elsets, gespeichert=None):
-    """Die Rollen der angebotenen Sets.
+    """The roles of the offered sets.
 
-    Was im Objekt gespeichert ist, gilt weiter.  Alles Neue - etwa ein Set, das
-    erst nach einer Modellaenderung dazugekommen ist - ist **Design-Raum**:
-    "ignorieren" ist die Ausnahme, die man bewusst setzt.
+    What is stored in the object stays valid.  Everything new - for example a set
+    that only appeared after a model change - is **design space**:
+    "ignore" is the exception that is set deliberately.
     """
     if not gespeichert:
         return vorschlag(elsets)

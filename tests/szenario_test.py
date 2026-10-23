@@ -1,26 +1,26 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Szenario-Matrix: Fehlerfaelle, Filter-/Radius-Varianten, 2D/3D und Vergleich.
+"""Scenario matrix: error cases, filter/radius variants, 2D/3D and comparison.
 
-Der Test deckt ab:
+The test covers:
 
-  A) Fehlerfaelle im Assistenten - fehlendes Netz, fehlender Solver, fehlende
-     .inp, kein Design-Raum: der Lauf darf gar nicht erst starten.
-  B) beso-Rechnungen auf kleinen Modellen (echte Laeufe, je 1-2 Iterationen):
-     Filter (simple, casting und alle Morphologie-Filter), Radien (auto, robust,
-     manuell), Zielmasse, 2D-Schale und 3D-Volumen.
-  C) Fehlende Schalendicke: beso muss eine klare Meldung bringen (nicht still mit
-     1 mm rechnen) - hier wird dokumentiert, was passiert.
-  D) Referenzvergleich: dieselbe Konfiguration mit dem **gebuendelten beso** des
-     Addons und dem **unveraenderten beso von GitHub** - gleiche Massen? gleiche
-     Iterationen?  (Original vorher klonen:
+  A) error cases in the assistant - missing mesh, missing solver, missing
+     .inp, no design space: the run must not even start.
+  B) beso computations on small models (real runs, 1-2 iterations each):
+     filters (simple, casting and all morphology filters), radii (auto, robust,
+     manual), target mass, 2D shell and 3D solid.
+  C) missing shell thickness: beso has to give a clear message (not silently
+     compute with 1 mm) - what happens is documented here.
+  D) reference comparison: the same configuration with the **bundled beso** of the
+     addon and the **unmodified beso from GitHub** - same masses? same iterations?
+     (clone the original first:
      ``git clone --depth 1 https://github.com/calculix/beso.git``)
 
-Aufruf (GUI, deckt auch A ab):
+Call (GUI, also covers A):
     freecad.exe tests/szenario_test.py
-Aufruf (headless, ohne A):
+Call (headless, without A):
     freecadcmd tests/szenario_test.py
 
-Der Bericht landet als ``szenario_bericht.md`` neben dem Skript.
+The report ends up as ``szenario_bericht.md`` next to the script.
 """
 import json
 import os
@@ -35,9 +35,10 @@ HIER = os.path.dirname(os.path.abspath(__file__))
 MODELLE = os.path.join(HIER, "szenarien")
 BERICHT = os.path.join(HIER, "szenario_bericht.md")
 ARBEIT = os.path.join(tempfile.gettempdir(), "topoopt_szenarien")
-# Das unveraenderte Original-beso fuer den Vergleich (https://github.com/calculix/beso):
+# The unmodified original beso for the comparison (https://github.com/calculix/beso):
 #     git clone --depth 1 https://github.com/calculix/beso.git
-# Pfad entweder ueber die Umgebungsvariable BESO_ORIGINAL oder als Klon im Temp-Ordner.
+# The path comes either from the environment variable BESO_ORIGINAL or from a clone in
+# the temp directory.
 ORIGINAL_BESO = os.environ.get("BESO_ORIGINAL",
                                os.path.join(tempfile.gettempdir(), "beso-original"))
 
@@ -58,10 +59,10 @@ def pruefe(name, bedingung, detail=""):
 
 
 # --------------------------------------------------------------------------- #
-# beso-Lauf
+# beso run
 # --------------------------------------------------------------------------- #
 class Fake(object):
-    """Traeger der Laufparameter (wie das Optimierungsobjekt im Assistenten)."""
+    """Carrier of the run parameters (like the optimization object in the assistant)."""
 
     def __init__(self, zielmasse=0.6, filter_liste=None, iterationen="2", dicke=None,
                  dicken_modus="auto", stress=None):
@@ -82,7 +83,7 @@ class Fake(object):
 
 
 def _kopiere_beso(ziel, quelle):
-    """beso (Original oder gebuendelt) in den Laufordner kopieren."""
+    """Copy beso (original or bundled) into the run directory."""
     if os.path.isdir(ziel):
         shutil.rmtree(ziel)
     shutil.copytree(quelle, ziel)
@@ -90,26 +91,26 @@ def _kopiere_beso(ziel, quelle):
 
 
 def _conf_fuer(modell, einstellungen, ordner, beso_ordner):
-    """Eine beso_conf.py von Hand schreiben (ohne Addon), damit beide
-    beso-Varianten exakt dieselbe Konfiguration bekommen."""
+    """Write a beso_conf.py by hand (without the addon) so that both
+    beso variants get exactly the same configuration."""
     from freecad.TopoOpt.core import elsets as elset_reader
     doms = [n for n in elset_reader.read_elsets(modell) if n.lower() not in
             ("eall", "efaces", "evolumes", "eedges", "enodes")]
     domain = sorted(doms)[0]
     dicken = elset_reader.read_shell_thicknesses(modell)
-    # ohne Dicke: besos Beispielwert 1.0 (das ist der Fehlerfall)
+    # without a thickness: beso's example value 1.0 (that is the error case)
     dicke_zeile = ""
     if einstellungen.get("dicken_modus") == "auto" and domain in dicken:
         d = dicken[domain]
         dicke_zeile = "domain_thickness[%r] = [%r, %r]\n" % (domain, d, d)
     elif einstellungen.get("dicken_modus") == "ohne":
-        pass                      # nichts -> beso nimmt 1.0 aus seiner Vorlage
-    # beso_main liest die Konfiguration aus SEINEM Ordner (beso_conf.py) - die
-    # Original-Vorlage wird vorher gesichert, sonst ueberschreiben wir sie
+        pass                      # nothing -> beso takes 1.0 from its template
+    # beso_main reads the configuration from ITS OWN directory (beso_conf.py) - the
+    # original template is saved first, otherwise we would overwrite it
     vorlage = os.path.join(beso_ordner, "beso_conf_vorlage.py")
     if not os.path.isfile(vorlage):
         shutil.copyfile(os.path.join(beso_ordner, "beso_conf.py"), vorlage)
-    # beso kennt "robust" nicht - das Addon ersetzt es vorher durch einen Radius
+    # beso does not know "robust" - the addon replaces it with a radius beforehand
     filter_liste = [list(f) for f in einstellungen["filter"]]
     for eintrag in filter_liste:
         if len(eintrag) > 1 and eintrag[1] == "robust":
@@ -134,12 +135,12 @@ def _conf_fuer(modell, einstellungen, ordner, beso_ordner):
         fh.write("mass_goal_ratio = %r\n" % einstellungen["zielmasse"])
         fh.write("filter_list = %r\n" % (filter_liste,))
         fh.write("optimization_base = %r\n" % einstellungen.get("basis", "stiffness"))
-        # zulaessige Spannung je Domain - eine Domain darf bewusst keine haben
+        # permissible stress per domain - one domain deliberately has none
         for dn, wert in (einstellungen.get("sigma") or {}).items():
             zeile = ("domain_FI[%r] = [[('stress_von_Mises', %r)], "
                      "[('stress_von_Mises', %r)]]\n") % (dn, wert * 1e6, wert * 1e6)
             fh.write(zeile)
-        # eine zweite Domain: berechnet, aber nicht optimiert
+        # a second domain: computed, but not optimized
         zweite = einstellungen.get("zweite_domain")
         if zweite:
             fh.write("domain_optimized[%r] = False\n" % zweite)
@@ -165,7 +166,7 @@ def _ccx():
 
 
 def lauf(name, modell, einstellungen, beso_quelle=None):
-    """Einen beso-Lauf ausfuehren und auswerten."""
+    """Execute one beso run and evaluate it."""
     from freecad.TopoOpt.core import beso as beso_modul
     from freecad.TopoOpt.core import conf as conf_modul
     from freecad.TopoOpt.core import lauf as lauf_modul
@@ -175,7 +176,7 @@ def lauf(name, modell, einstellungen, beso_quelle=None):
         try:
             shutil.rmtree(ordner)
         except OSError:
-            # Windows gibt Dateien verzoegert frei - dann einen frischen Ordner nehmen
+            # Windows releases files with a delay - then take a fresh directory
             ordner = "%s_%d" % (ordner, int(time.time()))
     os.makedirs(ordner)
     ziel = _kopiere_beso(os.path.join(ordner, "beso"), beso_quelle or beso_modul.ORDNER)
@@ -203,7 +204,7 @@ def lauf(name, modell, einstellungen, beso_quelle=None):
 
 
 # --------------------------------------------------------------------------- #
-# A) Fehlerfaelle im Assistenten
+# A) error cases in the assistant
 # --------------------------------------------------------------------------- #
 def fehlerfaelle():
     sag("## A) Fehlerfaelle im Assistenten")
@@ -235,7 +236,7 @@ def fehlerfaelle():
         panel._zeige_schritt(3)
         return obj, panel
 
-    # 1) ohne Netz
+    # 1) without a mesh
     doc.removeObject(netz.Name)
     doc.recompute()
     obj, panel = panel_bauen()
@@ -243,7 +244,7 @@ def fehlerfaelle():
     pruefe("ohne Netz startet kein Lauf",
            panel._lauf_prozess is None and "Netz" in panel.lauf_status.text(),
            panel.lauf_status.text())
-    # 2) ohne Solver (Netz wieder da)
+    # 2) without a solver (mesh back in place)
     doc.addObject(netz.TypeId, netz.Name)
     doc.recompute()
     doc.removeObject(solver.Name)
@@ -255,14 +256,14 @@ def fehlerfaelle():
            panel.lauf_status.text())
     doc.addObject(solver.TypeId, solver.Name)
     doc.recompute()
-    # 3) ohne .inp
+    # 3) without .inp
     obj, panel = panel_bauen()
     obj.InpFile = ""
     panel._lauf_starten()
     pruefe("ohne Eingabedatei startet kein Lauf",
            panel._lauf_prozess is None and "Eingabedatei" in panel.lauf_status.text(),
            panel.lauf_status.text())
-    # 4) ohne Design-Raum
+    # 4) without design space
     obj, panel = panel_bauen()
     panel.stress = {}
     for name in list(panel.domains):
@@ -281,21 +282,22 @@ def fehlerfaelle():
 
 
 # --------------------------------------------------------------------------- #
-# B) Rechenmatrix
+# B) computation matrix
 # --------------------------------------------------------------------------- #
 MODELL_3D = os.path.join(MODELLE, "modell_3d_hex.inp")
 MODELL_2D = os.path.join(MODELLE, "modell_2d_schale.inp")
 MODELL_2D_OHNE = os.path.join(MODELLE, "modell_2d_ohne_dicke.inp")
 MODELL_2SETS = os.path.join(MODELLE, "modell_2sets.inp")
 
-# Szenarien, bei denen unser beso absichtlich anders reagiert als das Original:
-#   * zu kleiner Filterradius - das Original rechnet ohne Filter weiter und meldet am Ende
-#     Konvergenz, statt den Lauf zu beenden
-#   * fehlende Schalendicke bei 2D-Modellen - das Original rechnet still mit seinem Beispielwert
-#   * 2D-Schalenmodelle allgemein: das Original bricht mit numpy 2 ab, weil np.linalg.linalg
-#     dort entfernt wurde (gemessen mit numpy 2.4); casting mit "auto" bricht zusaetzlich mit
-#     NameError ab.  Unser beso rechnet in beiden Faellen.
-# Gemessen mit FreeCAD 26.3 (Flatpak) und numpy 2.4: 13 von 17 Szenarien identisch.
+# Scenarios in which our beso deliberately reacts differently from the original:
+#   * filter radius too small - the original keeps computing without a filter and
+#     reports convergence at the end instead of ending the run
+#   * missing shell thickness with 2D models - the original silently computes with its
+#     example value
+#   * 2D shell models in general: the original aborts with numpy 2 because
+#     np.linalg.linalg was removed there (measured with numpy 2.4); casting with "auto"
+#     additionally aborts with a NameError.  Our beso computes in both cases.
+# Measured with FreeCAD 26.3 (Flatpak) and numpy 2.4: 13 of 17 scenarios identical.
 BEKANNTE_ABWEICHUNGEN = ("2D Schale casting auto", "2D Schale simple auto",
                          "3D simple 1.5 (Radius zu klein)", "3D simple manuell 1.0")
 
@@ -328,7 +330,7 @@ MATRIX = [
      {"zielmasse": 0.6, "filter": [["simple", "auto"]], "iterationen": "2",
       "dicken_modus": "ohne"}),
 ]
-# alle Morphologie-Filter einmal durchprobieren
+# try every morphology filter once
 for _typ in ("erode sensitivity", "dilate sensitivity", "open sensitivity",
              "close sensitivity", "open-close sensitivity", "close-open sensitivity",
              "combine sensitivity"):
@@ -371,10 +373,10 @@ def berichte_laeufe(laeufe, titel):
 
 
 # --------------------------------------------------------------------------- #
-# D) Vergleich mit dem originalen beso
+# D) comparison with the original beso
 # --------------------------------------------------------------------------- #
 def vergleich_original():
-    """Original-beso (ohne unsere Fixes) gegen das gebuendelte beso derselben Modelle."""
+    """Original beso (without our fixes) against the bundled beso on the same models."""
     sag("## D) Vergleich: gebuendeltes beso gegen unveraendertes beso von GitHub (upstream)")
     sag()
     if not os.path.isdir(ORIGINAL_BESO):
@@ -398,7 +400,7 @@ def vergleich_original():
     abweichend = sorted(a["name"].replace("neu_", "") for a, b in zip(neu, alt)
                         if [round(m, 6) for _, m in a["massen"]] != [round(m, 6) for _, m in b["massen"]])
     sag("Identische Ergebnisse: %d von %d" % (gleich, len(neu)))
-    # abweichen duerfen genau die oben unter BEKANNTE_ABWEICHUNGEN begruendeten Faelle
+    # only the cases justified above under BEKANNTE_ABWEICHUNGEN may differ
     pruefe("genau die dokumentierten Abweichungen (erwartet: %s - gemessen: %s)"
            % (", ".join(sorted(BEKANNTE_ABWEICHUNGEN)) or "keine",
               ", ".join(abweichend) or "keine"),
@@ -419,7 +421,7 @@ def main():
     sag()
     laeufe = rechenmatrix()
     berichte_laeufe(laeufe, "Ergebnisse der Rechenmatrix")
-    # Fehlerfall ohne Dicke muss sich klar zeigen
+    # the error case without a thickness has to show clearly
     ohne = [e for e in laeufe if "ohne Dicke" in e["name"]]
     if ohne:
         e = ohne[0]

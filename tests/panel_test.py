@@ -74,13 +74,13 @@ try:
 
     obj = create_topology_object(doc, analyse)
     panel = AssistantPanel(obj)
-    panel.laden()          # sofort laden, nicht auf den Timer warten
+    panel.laden()          # load right away, do not wait for the timer
 
     log("Status : %s" % panel.status.text())
     log("Kopf   : %s" % panel.kopf.text())
     log("Arbeit : %s" % obj.WorkingDir)
 
-    # Beim Oeffnen darf nichts erzeugt werden
+    # Nothing may be created when the panel is opened
     if not obj.InpFile:
         pruefe(panel.tabelle.rowCount() == 0, "ohne Eingabedatei bleibt die Tabelle leer")
         pruefe(bool(panel.status.text()), "Hinweis auf fehlende Eingabedatei vorhanden")
@@ -117,16 +117,16 @@ try:
     pruefe(any("design" in e for e in obj.Domains),
            "ein Design-Raum ist vorbelegt")
 
-    # Rolle umschalten, wie es die Tabelle erlaubt
+    # flip the role the way the table allows
     erster = sorted(rollen)[0]
     for zeile in range(panel.tabelle.rowCount()):
         if panel.tabelle.item(zeile, 0).text() == erster:
             feld = panel.tabelle.cellWidget(zeile, 1)
-            feld.setCurrentIndex(1)                       # Nicht-Design-Raum
+            feld.setCurrentIndex(1)                       # non-design space
     pruefe(any(e.startswith(erster + "|") and "non_design" in e for e in obj.Domains),
            "Aenderung in der Tabelle landet sofort im Objekt")
 
-    # Schritt 2: Parameter
+    # step 2: parameters
     panel._zeige_schritt(2)
     pruefe(panel.seiten.currentIndex() == 1, "Schritt 2 zeigt die Parameter-Seite")
     breite = panel.form.minimumSizeHint().width()
@@ -139,7 +139,7 @@ try:
            "Speicher-Intervall startet bei 10 (%d)" % panel.feld_speichern.value())
     pruefe(panel.kopf.parent() is not panel.form,
            "Kopfzeile steckt in Schritt 1, nicht ueber allen Schritten")
-    # die Domain-Tabelle ist so hoch wie ihr Inhalt, nicht hoeher
+    # the domain table is as high as its content, not higher
     kopfhoehe = panel.tabelle.horizontalHeader().height()
     erwartet = kopfhoehe + panel.tabelle.rowCount() * panel.tabelle.rowHeight(0) + 8
     pruefe(abs(panel.tabelle.height() - erwartet) <= 12,
@@ -155,7 +155,7 @@ try:
            "im ersten Schritt ist kein Rollbalken noetig (max %d)"
            % panel.rollen[0].verticalScrollBar().maximum())
 
-    # zulaessige Spannung: leer = kein FI, Wert = FI (eine Spalte je Domain)
+    # permissible stress: empty = no FI, value = FI (one column per domain)
     pruefe(len(panel.felder_stress) == len(panel.elsets),
            "jede Domain hat ein Feld fuer die zulaessige Spannung (%d Felder)"
            % len(panel.felder_stress))
@@ -171,8 +171,8 @@ try:
            "leeres Feld nimmt die Spannung heraus und merkt sich das (%s)"
            % (panel.obj.StressLimits,))
 
-    # Material mit Streckgrenze: das Feld bleibt trotzdem leer (die Wahl liegt beim Anwender),
-    # der Hinweis unter der Liste nennt den moeglichen Wert
+    # material with a yield strength: the field stays empty anyway (the choice is up to
+    # the user), the hint under the list names the possible value
     material_alt = doc.getObject("MaterialSolid")
     werte_alt = dict(material_alt.Material)
     werte_neu = dict(werte_alt)
@@ -201,7 +201,7 @@ try:
            and "failure-index" in panel.hinweis_stress.text().lower(),
            "ohne Wert weist der Hinweis auf den fehlenden Failure-Index hin (%s)"
            % panel.hinweis_stress.text()[:70])
-    # Material ohne Streckgrenze: der Hinweis nennt keinen Wert
+    # material without a yield strength: the hint names no value
     material_alt.Material = werte_alt
     doc.recompute()
     panel.obj.StressLimits = []
@@ -221,9 +221,9 @@ try:
     panel._fuelle_tabelle()
     doc.recompute()
 
-    # sigma nur bei einem Teil der Domains -> rote Warnung (beso bricht sonst ab)
+    # sigma on only some of the domains -> red warning (beso aborts otherwise)
     panel.elsets["ZweitesSet"] = 100
-    panel.domains["ZweitesSet"] = dom.DESIGN      # gehoert zur Optimierung
+    panel.domains["ZweitesSet"] = dom.DESIGN      # belongs to the optimization
     panel.stress = {erster: 235.0}
     panel._zeige_stress_hinweis()
     pruefe(not panel.hinweis_stress.isHidden()
@@ -237,7 +237,7 @@ try:
     panel.stress_aus = set()
     panel._fuelle_tabelle()
 
-    # ein ignoriertes Set braucht keine zulaessige Spannung
+    # an ignored set needs no permissible stress
     panel.elsets["IgnoriertSet"] = 50
     panel.domains["IgnoriertSet"] = dom.IGNORE
     panel.stress = {}
@@ -248,14 +248,14 @@ try:
     del panel.domains["IgnoriertSet"]
     panel._fuelle_tabelle()
 
-    # Eingabedatei ohne Section-Karte fuer ein Set -> roter Hinweis in Schritt 1
+    # input file without a section card for a set -> red hint in step 1
     quelle = panel.obj.InpFile
     kaputt = os.path.join(tempfile.gettempdir(), "TopoOpt_PanelKaputt.inp")
     with open(quelle, encoding="utf8", errors="ignore") as rein, \
             open(kaputt, "w", encoding="utf8") as raus:
         for zeile in rein:
             if zeile.upper().startswith("*SOLID SECTION"):
-                continue                     # Section-Karte unterschlagen
+                continue                     # section card left out
             raus.write(zeile)
     panel._uebernehme_inp(kaputt, "")
     pruefe(not panel.hinweis_inp.isHidden() and erster in panel.hinweis_inp.text(),
@@ -266,7 +266,8 @@ try:
     pruefe(panel.hinweis_inp.isHidden(),
            "mit vollstaendiger Datei verschwindet der Hinweis")
 
-    # Material ohne E-Modul -> Hinweis mit Materialnamen (FreeCAD wuerde abbrechen)
+    # material without a Young's modulus -> hint with the material name (FreeCAD
+    # would abort)
     material_probe = doc.getObject("MaterialSolid")
     werte_probe = dict(material_probe.Material)
     ohne_e = dict(werte_probe)
@@ -284,7 +285,7 @@ try:
     pruefe(panel.hinweis_inp.isHidden(),
            "nach dem Ergaenzen der Werte verschwindet der Hinweis")
 
-    # Filter: Standard ist besos [["simple", "auto"]]
+    # filters: the default is beso's [["simple", "auto"]]
     pruefe(len(panel.filter_zeilen) == 1,
            "Standard: eine Filterzeile (%d)" % len(panel.filter_zeilen))
     pruefe(panel.filter_zeilen[0]["typ"].currentData() == "simple",
@@ -294,8 +295,8 @@ try:
     pruefe(panel.feld_toleranz.text() in ("0,001", "0.001"),
            "Toleranz ohne Fuellnullen: %s" % panel.feld_toleranz.text())
 
-    # der robuste Radius wird nur auf Knopfdruck gerechnet (dauert bei feinen Netzen)
-    # vorher die Rolle zurueck auf Design-Raum: ohne Design-Raum gibt es keinen Radius
+    # the robust radius is only computed on a button press (slow with fine meshes)
+    # first put the role back to design space: without design space there is no radius
     for zeile in range(panel.tabelle.rowCount()):
         if panel.tabelle.item(zeile, 0).text() == erster:
             panel.tabelle.cellWidget(zeile, 1).setCurrentIndex(0)
@@ -377,7 +378,7 @@ try:
     panel.reject()
     pruefe(assist.panel_for(obj.Name) is None, "Assistent wurde geschlossen (reject)")
 
-    # Kopfzeile: fehlende Teile muessen gemeldet werden
+    # header line: missing parts have to be reported
     from freecad.TopoOpt.core import fem as fem_modul
     solver_objekt = fem_modul.find_solver(analyse)
     analyse.removeObject(solver_objekt)
@@ -398,7 +399,7 @@ try:
     pruefe("nicht vorhanden" not in panel2.kopf.text()
            and "not available" not in panel2.kopf.text(),
            "mit vollstaendiger Analyse ist keine rote Meldung mehr da")
-    # Schritt 3: die Lauf-Seite mit einem echten (sehr kurzen) Lauf
+    # step 3: the run page with a real (very short) run
     panel2._zeige_schritt(3)
     pruefe(panel2.seiten.currentIndex() == 2, "Schritt 3 zeigt die Lauf-Seite")
     pruefe(panel2.knopf_lauf.text() in ("Start optimization", "Optimierung starten"),
@@ -408,7 +409,7 @@ try:
     panel2._detail_umschalten()
     pruefe(panel2.detail.isHidden() is False, "das Detail-Feld klappt auf")
 
-    obj.IterationsLimit = "1"                     # nur eine Iteration rechnen
+    obj.IterationsLimit = "1"                     # compute only one iteration
     panel2.knopf_lauf.click()
     pruefe(panel2._lauf_prozess is not None, "der Lauf wurde gestartet")
     pruefe(panel2.knopf_lauf.text() in ("Cancel", "Abbrechen"),
@@ -431,8 +432,8 @@ try:
     pruefe(panel2.balken.value() > 0,
            "der Fortschrittsbalken ist gewandert (%d %%)" % panel2.balken.value())
 
-    # Fehlerfall im Lauf-Update: Lauf vorbei, Detail zugeklappt.  Das Aufklappen darf
-    # sich nicht selbst aufrufen - das war ein RecursionError (995 <-> 1116).
+    # error case in the run update: run over, details collapsed.  Expanding them must
+    # not call itself - that was a RecursionError (995 <-> 1116).
     panel2.lauf_timer.stop()
     panel2._lauf_prozess = None
     panel2.knopf_detail.setChecked(False)
@@ -453,9 +454,9 @@ try:
     pruefe(len(panel2.verlauf._achsen) == 4,
            "das Verlaufsfenster hat vier Diagramme (%d)" % len(panel2.verlauf._achsen))
 
-    # Issue #5: "Show diagrams" muss einen offenen Diagramm-Tab nach vorn holen.
-    # Der Tab liegt in der QMdiArea; setActiveSubWindow wirkt nur, wenn das Fenster
-    # selbst bzw. sein parentWidget() das SubWindow ist.
+    # Issue #5: "Show diagrams" has to bring an open chart tab to the front.
+    # The tab lives in the QMdiArea; setActiveSubWindow only works when the window
+    # itself or its parentWidget() is the subwindow.
     from FreeCAD.Plot import Plot as _Plot
     from PySide import QtWidgets as _Qt
     import FreeCADGui as _Gui
@@ -501,9 +502,9 @@ try:
     pruefe(panel2.lauf_status.text() != "",
            "der Status ist gefuellt (%s)" % panel2.lauf_status.text())
 
-    # Der Status teilt sich die Zeile mit "Details", bekommt aber den Rest der Breite.
-    # Vorher stand davor ein Dehnungs-Platz: das Umbruch-Label bekam nur seine
-    # Wunschbreite und der Text lief auf zwei Zeilen um.
+    # The status shares the line with "Details" but gets the rest of the width.
+    # Before, a stretch item sat in front of it: the wrapping label only got its
+    # preferred width and the text wrapped onto two lines.
     from PySide import QtWidgets as _Qt  # noqa: E402
     panel2.form.resize(560, 760)
     panel2.form.show()
@@ -521,9 +522,9 @@ try:
            % (_hoehe, _masse.height()))
     panel2.form.hide()
 
-    # Waehrend des Laufs zeigt "Iterationen anzeigen" den letzten Zwischenstand: beso
-    # schreibt je gespeicherter Iteration eine fileNNN.vtk - gleiches Format, aber nur
-    # ein Teil der Zustaende.  resulting_states.vtk gibt es erst am Ende des Laufs.
+    # While the run is going on "Show iterations" shows the last intermediate state:
+    # beso writes one fileNNN.vtk per saved iteration - same format, but only part of
+    # the states.  resulting_states.vtk only exists at the end of the run.
     _ordner_alt = panel2.obj.WorkingDir
     _ordner = tempfile.mkdtemp(prefix="topoopt_zwischen_")
     panel2.obj.WorkingDir = _ordner
@@ -552,7 +553,7 @@ try:
     pruefe("min" in panel2.lauf_zeit.text(), "die Laufzeit laeuft mit (%s)"
            % panel2.lauf_zeit.text())
 
-    # FI-Toleranz (D42): das Feld im Assistenten gehoert zum Objekt
+    # FI tolerance (D42): the field in the assistant belongs to the object
     panel2.feld_fi_toleranz.setValue(7)
     pruefe(int(panel2.obj.FIViolatedTolerance) == 7,
            "die FI-Toleranz aus dem Panel landet im Objekt (%s)"
@@ -564,14 +565,14 @@ try:
            % panel2.feld_fi_toleranz.value())
     pruefe(panel2.lauf_zeit.parent() is panel2.knopf_lauf.parent(),
            "die Laufzeit steht in derselben Zeile wie der Start-Knopf")
-    # Abspielgeschwindigkeit des VTK-Players
+    # playback speed of the VTK player
     pruefe(panel2.cmb_takt.count() == 4,
            "vier Abspielgeschwindigkeiten stehen zur Wahl (%d)" % panel2.cmb_takt.count())
     panel2.cmb_takt.setCurrentIndex(2)
     pruefe(panel2.ergebnis_timer.interval() == 2000,
            "der Takt wirkt auf den Timer (%d ms)" % panel2.ergebnis_timer.interval())
 
-    # Ergebnisse im selben Schritt ("Berechnung"): VTK-Iterationen anzeigen
+    # results in the same step ("Berechnung"): show VTK iterations
     pruefe(panel2.schritt_label.text().count(" › ") == 2,
            "die Schrittleiste nennt drei Schritte (%s)" % panel2.schritt_label.text())
     pruefe("Berechnung" in panel2.schritt_label.text()
@@ -631,7 +632,7 @@ try:
            % (vorher_objekte, nachher_objekte))
     panel2._zeige_schritt(1)
 
-    # Fehlerfaelle: ohne Netz/Solver keine Eingabedatei, ohne .inp/Design kein Lauf
+    # error cases: no mesh/solver means no input file, no .inp/design means no run
     def _proband():
         objekt = create_topology_object(doc, analyse, "Szenario%d" % int(time.time() * 1000 % 100000))
         proband = AssistantPanel(objekt)
@@ -644,7 +645,7 @@ try:
     if not netz_war_im_dokument:
         analyse.addObject(netz_objekt)
         doc.recompute()
-    # ohne Netz: keine Eingabedatei, Kopfzeile rot
+    # without a mesh: no input file, header line red
     analyse.removeObject(netz_objekt)
     doc.recompute()
     objekt, proband = _proband()
@@ -653,7 +654,7 @@ try:
     analyse.addObject(netz_objekt)
     doc.recompute()
 
-    # ohne Solver: dasselbe
+    # without a solver: the same
     analyse.removeObject(solver_objekt)
     doc.recompute()
     objekt, proband = _proband()
@@ -662,11 +663,12 @@ try:
     analyse.addObject(solver_objekt)
     doc.recompute()
 
-    # ohne Eingabedatei: der Lauf startet nicht
-    # find_inp sucht bewusst auch im FEM-Arbeitsordner und in fremden %TEMP%/fcfem_*-Ordnern;
-    # auf einer Maschine, die schon Laeufe gesehen hat, findet es dort eine Datei - der Test
-    # haette dann nie "keine Eingabedatei" (gemessen: 233 Temp-Ordner, Panel fand eine .inp).
-    # Deshalb wird die Suche fuer diesen Test abgeschaltet; geprueft wird die Panel-Logik.
+    # without an input file: the run does not start
+    # find_inp deliberately also searches the FEM working directory and foreign
+    # %TEMP%/fcfem_* directories; on a machine that has seen runs it finds a file there -
+    # the test would then never have "no input file" (measured: 233 temp directories, the
+    # panel found an .inp).  That is why the search is switched off for this test; what is
+    # checked is the panel logic.
     from freecad.TopoOpt.core import fem as _fem
     _find_inp_echt = _fem.find_inp
     _fem.find_inp = lambda *a, **k: (None, "")
@@ -681,7 +683,7 @@ try:
     finally:
         _fem.find_inp = _find_inp_echt
 
-    # ohne Design-Raum: der Lauf startet nicht
+    # without design space: the run does not start
     objekt, proband = _proband()
     for name in list(proband.domains):
         proband.domains[name] = "ignore"

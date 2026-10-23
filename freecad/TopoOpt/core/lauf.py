@@ -25,18 +25,18 @@ START = re.compile(r"initial optimization domains mass\s+([0-9.eE+-]+)")
 ITERATION = re.compile(r"new iteration number\s+(\d+)")
 MASSE = re.compile(r"^mass\s*=\s*([0-9.eE+-]+)", re.MULTILINE)
 
-# Die Iterationstabelle hat je nach Modell unterschiedlich viele Spalten: der Kopf
-# beginnt mit "i  mass  ener_dens_mean" (oder heat_flux_mean) und bekommt mit
-# Failure Index weitere: FI_violated je Domain (nur bei mehr als einer Domain
-# zusaetzlich "all"), FI_mean, FI_mean_without_state0 und FI_max je Domain
-# (ebenfalls mit "all").  Gemessen: 3 Spalten, 4 mit FI und einer Domain, 8 mit FI
-# und zwei Domains - deshalb werden die Spalten ueber den Kopf zugeordnet.
+# The iteration table has a different number of columns depending on the model: the
+# header starts with "i  mass  ener_dens_mean" (or heat_flux_mean) and gets more with
+# a failure index: FI_violated per domain (plus "all" when there is more than one
+# domain), FI_mean, FI_mean_without_state0 and FI_max per domain (also with "all").
+# Measured: 3 columns, 4 with a failure index and one domain, 8 with two domains -
+# which is why the columns are assigned through the header.
 KOPF_MERKMALE = {"mass": "mass", "ener_dens_mean": "ener", "heat_flux_mean": "ener",
                  "FI_mean": "fi_mean", "_without_state0": "fi_mean_ohne"}
 
 
 def _kopf_positionen(zeile):
-    """Positionen der bekannten Spalten aus der Kopfzeile der Iterationstabelle."""
+    """Positions of the known columns, taken from the header row of the iteration table."""
     tokens = zeile.split()
     positionen = {}
     for nummer, token in enumerate(tokens):
@@ -44,19 +44,19 @@ def _kopf_positionen(zeile):
             if token == merkmal or (merkmal.startswith("FI_") and token.startswith(merkmal)):
                 positionen[name] = nummer
     if "fi_mean" in positionen:
-        # die Sammelspalte "all" steht direkt vor FI_mean, sonst die einzige Domain
+        # the combined "all" column sits directly before FI_mean, otherwise it is the only domain
         positionen["fi_violated"] = positionen["fi_mean"] - 1
     if positionen.get("fi_mean"):
-        # FI_max: die letzte Spalte der Tabelle ist "all" (bzw. die einzige Domain)
+        # FI_max: the last column of the table is "all" (or the only domain)
         positionen["fi_max"] = len(tokens) - 1
     return positionen
 
 
 def tabelle_lesen(beso_log):
-    """Die Iterationstabelle aus der beso-Logdatei.
+    """The iteration table from beso's log file.
 
     Returns [(iteration, {"mass":…, "ener":…, "fi_violated":…, "fi_mean":…, "fi_max":…}), …]
-    in der Reihenfolge der Datei; leere Liste, wenn es die Datei nicht gibt.
+    in the order of the file; an empty list when the file does not exist.
     """
     ergebnis = []
     if not beso_log or not os.path.isfile(beso_log):
@@ -92,7 +92,7 @@ def tabelle_lesen(beso_log):
 
 
 def fortschritt(beso_log, ziel_anteil=None):
-    """Was die Tabelle über den Lauf sagt.
+    """What the table says about the run.
 
     Returns a dict with ``start`` (mass of iteration 0), ``ziel`` (when
     ``ziel_anteil`` is given), ``iteration``, ``masse``, ``massen`` [(i, mass), …] and
@@ -113,7 +113,7 @@ def fortschritt(beso_log, ziel_anteil=None):
 
 
 def anteil(start, masse, ziel_anteil):
-    """Wie weit der Lauf ist, in Prozent (0 = Startmasse, 100 = Zielmasse)."""
+    """How far the run has come, in percent (0 = start mass, 100 = target mass)."""
     if not start or not masse:
         return 0.0
     ziel = min(max(float(ziel_anteil or 0.0), 0.01), 0.99)
@@ -121,7 +121,7 @@ def anteil(start, masse, ziel_anteil):
 
 
 def verlauf_lesen(log_pfad, ziel_anteil=None):
-    """Unser eigenes Protokoll (<mesh>_topoopt.log) für das Detail-Feld.
+    """Our own protocol (<mesh>_topoopt.log) for the details field.
 
     Returns a dict with ``text`` (whole file), ``iteration``, ``massen`` and ``fertig``.
     """

@@ -29,13 +29,13 @@ FARBEN = {
     "ener": "#9467bd",
 }
 FENSTERTITEL = "Topology optimization - history"
-# Höhe der vier Diagramme im Fenster (unten, dann nach oben)
+# Height of the four charts in the window (bottom first, then upwards)
 POSITIONEN = ((0.14, 0.07, 0.82, 0.18), (0.14, 0.29, 0.82, 0.18),
               (0.14, 0.51, 0.82, 0.18), (0.14, 0.73, 0.82, 0.18))
 
 
 class Verlauf(object):
-    """Sammelt die Iterationswerte und zeichnet sie in ein Plot-Fenster."""
+    """Collects the iteration values and draws them into a plot window."""
 
     def __init__(self, titel=FENSTERTITEL, zielmasse=None):
         self.titel = titel
@@ -50,7 +50,7 @@ class Verlauf(object):
         self._timer.timeout.connect(self.zeichne)
         self._timer.start(1500)
 
-    # ------------------------------------------------------------------ Daten
+    # ------------------------------------------------------------------- Data
     def setze_werte(self, werte):
         self.werte = list(werte or [])
 
@@ -59,9 +59,9 @@ class Verlauf(object):
         self.geschlossen = False
         self._start_zeit = time.time()
 
-    # ---------------------------------------------------------------- Fenster
+    # ----------------------------------------------------------------- Window
     def anzeigen(self):
-        """Fenster zeigen (anlegen, wenn es noch keines gibt)."""
+        """Show the window (creating it when there is none yet)."""
         self.geschlossen = False
         fenster = self._sorge_fuer_fenster()
         self.zeichne(erzwingen=True)
@@ -69,7 +69,7 @@ class Verlauf(object):
         return fenster
 
     def _nach_vorn(self, fenster):
-        """Den Tab des Fensters aktivieren - existiert es schon, passierte sonst nichts Sichtbares."""
+        """Activate the window's tab - when it already exists, nothing visible would happen otherwise."""
         if fenster is None:
             return
         try:
@@ -77,8 +77,8 @@ class Verlauf(object):
             mdi = tab.mdiArea() if hasattr(tab, "mdiArea") else None
             if mdi is not None:
                 mdi.setActiveSubWindow(tab)
-            # nur wenn es wirklich minimiert ist: im Tab-Modus sind die Tabs intern
-            # maximiert - ein showNormal() wuerde sie zu freistehenden Fenstern machen
+            # only when it really is minimized: in tab mode the tabs are internally
+            # maximized - a showNormal() would turn them into free-standing windows
             if tab.isMinimized():
                 tab.showNormal()
             tab.raise_()
@@ -87,7 +87,7 @@ class Verlauf(object):
             pass
 
     def schliessen(self):
-        """Nach einem Lauf: den Timer anhalten (das Fenster bleibt offen)."""
+        """After a run: stop the timer (the window stays open)."""
         self._timer.stop()
 
     def _sorge_fuer_fenster(self):
@@ -108,8 +108,8 @@ class Verlauf(object):
             fenster.destroyed.connect(self._fenster_zu)
         except Exception:
             pass
-        # Wichtig: auch die vom Plot-Modul angelegte erste Achse auf ihre Position
-        # legen - sie liegt sonst über die ganze Fensterhöhe.
+        # Important: also put the first axes created by the Plot module at its own
+        # position - otherwise it spans the whole window height.
         fig = fenster.fig
         self._achsen = [fenster.axes]
         try:
@@ -124,12 +124,12 @@ class Verlauf(object):
         return self._fenster
 
     def _fenster_zu(self, *_):
-        """Vom Anwender geschlossen - nicht ungefragt neu aufziehen."""
+        """Closed by the user - do not reopen it unasked."""
         self._fenster = None
         self._achsen = []
         self.geschlossen = True
 
-    # --------------------------------------------------------------- Zeichnen
+    # ---------------------------------------------------------------- Drawing
     def zeichne(self, erzwingen=False):
         if not self.werte:
             if (self.laeuft or erzwingen) and not self.geschlossen:
@@ -158,7 +158,7 @@ class Verlauf(object):
         ueberlastet = spalte("fi_violated")
         energien = spalte("ener")
 
-        # 1) Masse in Prozent
+        # 1) mass in percent
         achse = self._achsen[3]
         achse.cla()
         achse.set_ylabel("Mass [%]", fontsize=8)
@@ -173,7 +173,7 @@ class Verlauf(object):
         achse.grid(True, alpha=0.3)
         achse.set_title("Optimization history", fontsize=9)
 
-        # 2) Auslastung
+        # 2) utilisation
         achse = self._achsen[2]
         achse.cla()
         achse.set_ylabel("FI", fontsize=8)
@@ -191,7 +191,7 @@ class Verlauf(object):
                        fontsize=7, color="#666666", transform=achse.transAxes)
         achse.grid(True, alpha=0.3)
 
-        # 3) überlastete Elemente
+        # 3) overloaded elements
         achse = self._achsen[1]
         achse.cla()
         achse.set_ylabel("overloaded", fontsize=8)
@@ -206,7 +206,7 @@ class Verlauf(object):
                        fontsize=7, color="#666666", transform=achse.transAxes)
         achse.grid(True, alpha=0.3)
 
-        # 4) Energiedichte
+        # 4) energy density
         achse = self._achsen[0]
         achse.cla()
         achse.set_xlabel("iteration", fontsize=8)
@@ -223,7 +223,7 @@ class Verlauf(object):
             pass
 
     def _warte_hinweis(self):
-        """Platzhalter, solange die erste Iteration noch läuft."""
+        """Placeholder while the first iteration is still running."""
         fenster = self._sorge_fuer_fenster()
         if fenster is None or not self._achsen:
             return

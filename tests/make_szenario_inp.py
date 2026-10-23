@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Kleine CalculiX-Modelle fuer die Szenario-Matrix erzeugen.
+"""Create small CalculiX models for the scenario matrix.
 
-beso liest ausschliesslich die ``.inp`` - FreeCAD muss dafuer nicht laufen.  Die
-Modelle hier sind winzig (8 Hexaeder bzw. 8 Dreiecke) und haben echte Lasten und
-Lager, damit ``stiffness`` nicht an fehlenden CalculiX-Ergebnissen scheitert.
+beso reads only the ``.inp`` - FreeCAD does not have to run for that.  The models
+here are tiny (8 hexahedra or 8 triangles) and have real loads and supports, so that
+``stiffness`` does not fail on missing CalculiX results.
 
-Erzeugt in ``tests/szenarien``:
-  modell_3d_hex.inp    2x2x2 Hexaeder (C3D8), 20 mm Wuerfel, Zug von oben
-  modell_2d_schale.inp 2x4 S3-Dreiecke, 20 x 10 mm, 5 mm Dicke, Zug an der Kante
-  modell_2d_ohne_dicke.inp  dasselbe ohne *SHELL SECTION (Fehlerfall)
+Written to ``tests/szenarien``:
+  modell_3d_hex.inp    2x2x2 hexahedra (C3D8), 20 mm cube, tension from above
+  modell_2d_schale.inp 2x4 S3 triangles, 20 x 10 mm, 5 mm thick, tension at the edge
+  modell_2d_ohne_dicke.inp  the same without *SHELL SECTION (error case)
 
-Aufruf:  python tests/make_szenario_inp.py   (normales Python, kein FreeCAD)
+Call:  python tests/make_szenario_inp.py   (plain Python, no FreeCAD)
 """
 import os
 
@@ -19,10 +19,10 @@ ZIEL = os.path.join(HIER, "szenarien")
 
 
 def hexaeder_modell(kanten=20.0, teile=2, zwei_sets=False):
-    """Wuerfel aus Hexaedern, unten fest, Zug nach unten oben.
+    """Cube made of hexahedra, fixed at the bottom, tension applied at the top.
 
-    Mit ``zwei_sets`` entstehen zwei Element-Sets mit je eigenem Material -
-    der Fall "eine Domain ohne zulaessige Spannung".
+    With ``zwei_sets`` two element sets with their own material each appear -
+    the case "one domain without a permissible stress".
     """
     schritt = kanten / teile
     knoten = {}
@@ -104,7 +104,8 @@ def hexaeder_modell(kanten=20.0, teile=2, zwei_sets=False):
 
 
 def schalen_modell(dicke=5.0, mit_dicke=True):
-    """Flaeche 20 x 10 mm aus zwei S3-Streifen, links fest, Zug rechts unten."""
+    """Surface 20 x 10 mm made of two S3 strips, fixed on the left, tension at the
+    bottom right."""
     punkte = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0),
               (0.0, 10.0), (10.0, 10.0), (20.0, 10.0)]
     zeilen = ["*NODE"]

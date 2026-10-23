@@ -1,32 +1,32 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Das Ergebnisnetz eines Laufs laden - das echte FEM-Netz, kein Schaubild.
+"""Load the result mesh of a run - the real FEM mesh, not an illustration.
 
-beso sichert jede gespeicherte Iteration als Zustandspaar ``<name>_state0.inp`` /
-``<name>_state1.inp`` (Zustand 1 = Element steht, Zustand 0 = Element entfernt).
-``state1`` ist damit das Material, das am Ende uebrig ist - ein richtiges
-CalculiX-Eingabefile mit Netzknoten, Elementen und Materialdaten.
+beso saves every stored iteration as a pair of states ``<name>_state0.inp`` /
+``<name>_state1.inp`` (state 1 = element remains, state 0 = element removed).
+``state1`` is therefore the material that is left at the end - a proper
+CalculiX input file with mesh nodes, elements and material data.
 
-Geladen wird es mit FreeCADs eigenem FEM-Import (``feminout.importInpMesh``), wie es
-mit dem importInpMesh aus FreeCAD.  Daraus wird ein Mesh-Objekt, mit dem man in FreeCAD
-weiterarbeiten kann (zum Beispiel eine FEM-Rechnung darauf).
+It is loaded with FreeCAD's own FEM import (``feminout.importInpMesh``), as it is
+done with the importInpMesh from FreeCAD.  That produces a mesh object you can
+continue working with in FreeCAD (for example an FEM calculation on it).
 
-Das ist etwas anderes als der VTK-Player in ``core/vtk.py``: der zeigt aus
-``resulting_states.vtk`` die **Oberflaeche** des stehengebliebenen Materials und
-dient nur dem Ansehen (und dem Iterationsfilm).
+This is something different from the VTK player in ``core/vtk.py``: that one shows
+the **surface** of the remaining material from ``resulting_states.vtk`` and
+only serves for looking at it (and for the iteration movie).
 """
 
 import os
 
-# Zustandsdatei einer Iteration ("file001_state1.inp")
+# state file of an iteration ("file001_state1.inp")
 ENDUNG = "_state1.inp"
 
 
 def neueste_state1(ordner):
-    """Die zuletzt geschriebene Zustandsdatei im Arbeitsordner.
+    """The state file written last in the working directory.
 
-    Nach Aenderungszeit sortiert, nicht alphabetisch: alphabetisch waere die
-    hoechste Iterationsnummer **eines frueheren** Laufs die "letzte".
-    Returns den Pfad oder "".
+    Sorted by modification time, not alphabetically: alphabetically the
+    highest iteration number **of an earlier** run would be the "last" one.
+    Returns the path or "".
     """
     if not ordner or not os.path.isdir(ordner):
         return ""
@@ -38,15 +38,15 @@ def neueste_state1(ordner):
 
 
 def laden(pfad, dokument=None):
-    """Das Netz aus einer Zustandsdatei als Mesh-Objekt ins Dokument legen.
+    """Put the mesh from a state file into the document as a mesh object.
 
-    Ein fehlender Importeur wird als klare Meldung weitergegeben - ohne FEM-Modul
-    kann FreeCAD die Datei nicht lesen.
+    A missing importer is passed on as a clear message - without the FEM module
+    FreeCAD cannot read the file.
     """
     if not pfad or not os.path.isfile(pfad):
         raise ValueError("Datei nicht gefunden: %s" % (pfad or "-"))
     try:
-        import femimport                      # noqa: F401  (laedt den Importeur)
+        import femimport                      # noqa: F401  (loads the importer)
     except Exception:
         pass
     from feminout import importInpMesh
