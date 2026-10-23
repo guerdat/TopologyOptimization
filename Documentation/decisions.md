@@ -555,6 +555,20 @@ unnoticed.  `.github/workflows/tests.yml` now runs on every push and every pull 
 The scenario matrix remains manual work: it computes with the unchanged beso from GitHub and
 should not turn red on every change from upstream.
 
+## D43 - "Show diagrams" holt den offenen Tab wirklich nach vorn
+
+Der Fix aus #7 (`mdiArea().setActiveSubWindow()`) wirkt in FreeCAD 26.3 - belegt in
+`tests/panel_test.py`: ein fremder Diagramm-Tab wird geoeffnet und aktiviert, danach holt
+`anzeigen()` den Verlaufs-Tab zurueck (`vorher 'Fremder Tab', nachher 'Topology optimization -
+history'`).
+
+Zusaetzlich wird das Fenster jetzt aus dem minimierten Zustand geholt (`showNormal()`, `raise_()`,
+`activateWindow()`), und die Funktion erkennt beide Formen: `Plot.figure()` liefert in 26.3 das
+Plot-Widget (dessen `parentWidget()` das `QMdiSubWindow` ist), in anderen Versionen direkt das
+SubWindow (belegt: `figure() -> Plot`, `parentWidget() -> QMdiSubWindow`, `mdiArea() -> QMdiArea`).
+
+headless 156/156, Assistent 145/145.
+
 ## D42 - FI_violated_tolerance is a property (default 1, as in beso)
 
 With an allowable stress, by default beso freezes the mass **permanently** as soon as the number of

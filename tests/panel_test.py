@@ -452,6 +452,31 @@ try:
            "das Verlaufsfenster wurde beim Start geoeffnet")
     pruefe(len(panel2.verlauf._achsen) == 4,
            "das Verlaufsfenster hat vier Diagramme (%d)" % len(panel2.verlauf._achsen))
+
+    # Issue #5: "Show diagrams" muss einen offenen Diagramm-Tab nach vorn holen.
+    # Der Tab liegt in der QMdiArea; setActiveSubWindow wirkt nur, wenn das Fenster
+    # selbst bzw. sein parentWidget() das SubWindow ist.
+    from FreeCAD.Plot import Plot as _Plot
+    from PySide import QtWidgets as _Qt
+    import FreeCADGui as _Gui
+    _mdi = _Gui.getMainWindow().findChild(_Qt.QMdiArea)
+    _unser = panel2.verlauf.anzeigen()
+    if _mdi is not None and _unser is not None:
+        _sub = _unser.parentWidget() if not hasattr(_unser, "mdiArea") else _unser
+        _fremd = _Plot.figure("Fremder Tab")
+        _mdi.setActiveSubWindow(_fremd.parentWidget() if not hasattr(_fremd, "mdiArea")
+                               else _fremd)
+        _aktiv_vor = _mdi.activeSubWindow()
+        panel2.verlauf.anzeigen()
+        _aktiv_nach = _mdi.activeSubWindow()
+        pruefe(_aktiv_nach is _sub,
+               "'Show diagrams' holt den Diagramm-Tab nach vorn (vorher %r, nachher %r)"
+               % (_aktiv_vor.windowTitle() if _aktiv_vor else None,
+                  _aktiv_nach.windowTitle() if _aktiv_nach else None))
+        if _fremd is not None and _fremd.parentWidget() is not None:
+            _fremd.parentWidget().close()
+    else:
+        pruefe(False, "QMdiArea und Verlaufsfenster stehen fuer den Tab-Test bereit")
     pruefe(panel2.knopf_diagramme.text() in ("Show diagrams", "Diagramme anzeigen"),
            "die Diagramme gehoeren zu den Ergebnissen (%s)" % panel2.knopf_diagramme.text())
     pruefe(panel2.knopf_ergebnis.text() in ("Show iterations", "Iterationen anzeigen"),

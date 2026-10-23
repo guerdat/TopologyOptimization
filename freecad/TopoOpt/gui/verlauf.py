@@ -73,10 +73,14 @@ class Verlauf(object):
         if fenster is None:
             return
         try:
-            tab = fenster.parentWidget()          # Plot.figure legt das Fenster in ein QMdiSubWindow
-            mdi = tab.mdiArea()
+            tab = fenster.parentWidget() if not hasattr(fenster, "mdiArea") else fenster
+            mdi = tab.mdiArea() if hasattr(tab, "mdiArea") else None
             if mdi is not None:
                 mdi.setActiveSubWindow(tab)
+            # auch aus dem minimierten Zustand holen und nach oben legen
+            tab.showNormal()
+            tab.raise_()
+            tab.activateWindow()
         except Exception:
             pass
 
