@@ -522,6 +522,17 @@ try:
     shutil.rmtree(_ordner, ignore_errors=True)
     pruefe("min" in panel2.lauf_zeit.text(), "die Laufzeit laeuft mit (%s)"
            % panel2.lauf_zeit.text())
+
+    # FI-Toleranz (D42): das Feld im Assistenten gehoert zum Objekt
+    panel2.feld_fi_toleranz.setValue(7)
+    pruefe(int(panel2.obj.FIViolatedTolerance) == 7,
+           "die FI-Toleranz aus dem Panel landet im Objekt (%s)"
+           % panel2.obj.FIViolatedTolerance)
+    panel2.obj.FIViolatedTolerance = 3
+    panel2._fuelle_parameter()
+    pruefe(int(panel2.feld_fi_toleranz.value()) == 3,
+           "die FI-Toleranz aus dem Objekt steht im Panel (%s)"
+           % panel2.feld_fi_toleranz.value())
     pruefe(panel2.lauf_zeit.parent() is panel2.knopf_lauf.parent(),
            "die Laufzeit steht in derselben Zeile wie der Start-Knopf")
     # Abspielgeschwindigkeit des VTK-Players

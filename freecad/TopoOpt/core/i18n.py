@@ -381,6 +381,16 @@ DEUTSCH = {
         "danach.",
     "Stop tolerance":
         "Abbruch-Toleranz",
+    "FI tolerance":
+        "FI-Toleranz",
+    "With an allowable stress beso freezes the mass as soon as this many more "
+    "elements than at the start exceed the limit - beso's default is 1, so a "
+    "single outlier can stop the run early. Raise it if your mesh has sharp "
+    "corners or thin webs.":
+        "Mit zulässiger Spannung friert beso die Masse ein, sobald so viele Elemente mehr "
+        "als am Start über der Grenze liegen - beso-Standard ist 1, ein einzelner Ausreißer "
+        "kann den Lauf also früh stoppen. Erhöhe den Wert, wenn dein Netz scharfe Kanten "
+        "oder dünne Stege hat.",
     "The optimization stops when the mean stress changes less than this value in the last 5 iterations (beso: 0.001).":
         "Die Optimierung endet, wenn sich die mittlere Spannung in den letzten 5 Iterationen um "
         "weniger als dieser Wert \u00e4ndert (beso: 0,001).",

@@ -343,6 +343,20 @@ class AssistantPanel:
         form.addWidget(self.feld_toleranz, zeile, 1)
 
         zeile += 1
+        form.addWidget(_label_wrap(uebersetze("FI tolerance")), zeile, 0)
+        self.feld_fi_toleranz = _ZahlFeld()
+        self.feld_fi_toleranz.setDecimals(0)
+        self.feld_fi_toleranz.setRange(1, 10000)
+        self.feld_fi_toleranz.setSingleStep(1)
+        self.feld_fi_toleranz.setToolTip(uebersetze(
+            "With an allowable stress beso freezes the mass as soon as this many more "
+            "elements than at the start exceed the limit - beso's default is 1, so a "
+            "single outlier can stop the run early. Raise it if your mesh has sharp "
+            "corners or thin webs."))
+        self.feld_fi_toleranz.valueChanged.connect(self._parameter_geaendert)
+        form.addWidget(self.feld_fi_toleranz, zeile, 1)
+
+        zeile += 1
         form.addWidget(_label_wrap(uebersetze("Material change per iteration")), zeile, 0)
         self.combo_masse_aenderung = _combo_schmal(QtWidgets.QComboBox())
         for schluessel in MASS_CHANGE:
@@ -1569,6 +1583,7 @@ class AssistantPanel:
         text = self.feld_iterationen.text().strip()
         self.obj.IterationsLimit = text if text else "auto"
         self.obj.Tolerance = self.feld_toleranz.value()
+        self.obj.FIViolatedTolerance = int(self.feld_fi_toleranz.value())
         self.obj.MassChange = self.combo_masse_aenderung.currentData()
         self.obj.CpuCores = self.feld_kerne.value()
         self.obj.SaveIterations = self.feld_speichern.value()
@@ -1577,8 +1592,8 @@ class AssistantPanel:
     def _fuelle_parameter(self):
         """Show the parameters of the object in the widgets (without writing back)."""
         felder = (self.slider_masse, self.feld_masse, self.combo_basis, self.feld_iterationen,
-                  self.feld_toleranz, self.combo_masse_aenderung, self.feld_kerne,
-                  self.feld_speichern, self.combo_format)
+                  self.feld_toleranz, self.feld_fi_toleranz, self.combo_masse_aenderung,
+                  self.feld_kerne, self.feld_speichern, self.combo_format)
         for feld in felder:
             feld.blockSignals(True)
         try:
@@ -1591,6 +1606,8 @@ class AssistantPanel:
             self.feld_iterationen.setText(str(getattr(self.obj, "IterationsLimit", "auto")))
             self.feld_toleranz.setValue(min(max(float(getattr(self.obj, "Tolerance", 1e-3)),
                                                 0.00001), 1.0))
+            self.feld_fi_toleranz.setValue(
+                min(max(int(getattr(self.obj, "FIViolatedTolerance", 1)), 1), 10000))
             self.combo_masse_aenderung.setCurrentIndex(max(
                 0, self.combo_masse_aenderung.findData(getattr(self.obj, "MassChange", "normal"))))
             self.feld_kerne.setValue(int(getattr(self.obj, "CpuCores", 0)))
