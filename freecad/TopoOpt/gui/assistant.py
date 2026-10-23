@@ -1009,20 +1009,6 @@ class AssistantPanel:
         except Exception as exc:
             self.ergebnis_info.setText(uebersetze("The log file could not be opened: %s") % exc)
 
-    def _ordner_oeffnen(self):
-        """Den Arbeitsordner im Dateimanager oeffnen."""
-        ordner = getattr(self.obj, "WorkingDir", "")
-        if not ordner or not os.path.isdir(ordner):
-            self.ergebnis_info.setText(uebersetze("There is no working directory yet."))
-            return
-        try:
-            if os.name == "nt":
-                os.startfile(ordner)
-            else:
-                subprocess.Popen(["xdg-open", ordner])
-        except Exception as exc:
-            self.ergebnis_info.setText(uebersetze("The folder could not be opened: %s") % exc)
-
     def _detail_umschalten(self):
         sichtbar = self.knopf_detail.isChecked()
         self.detail.setVisible(sichtbar)
